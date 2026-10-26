@@ -2,8 +2,10 @@
 import express from 'express';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { state, startScheduler } from './state.js';
-import { getQuotes, sourceStatus } from './em.js';
+import { state, startScheduler, marketPhase, runSweep } from './state.js';
+import { getQuotes, getNews, getGlobal, sourceStatus } from './em.js';
+import { scanAll, reflowScan, auctionScan } from './scan.js';
+import { historyState } from './history.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const PORT = process.env.PORT || 8000;
@@ -39,6 +41,51 @@ app.get('/api/quotes', async (req, res) => {
   } catch (e) {
     res.status(502).json({ error: e.message });
   }
+});
+
+// 形态选股（放量突破/缩量回踩）+ 龙头回流预期
+app.get('/api/scan', (req, res) => {
+  const sweep = state.marketSweep;
+  const base = scanAll(sweep);
+  res.json({
+    ...base,
+    reflow: reflowScan(sweep, state.pools),
+    phase: marketPhase(),
+  });
+});
+
+// 竞价雷达（9:15-9:25 最有效）
+app.get('/api/auction', (req, res) => {
+  res.json({ ...auctionScan(state.marketSweep, state.pools), phase: marketPhase() });
+});
+
+// 隔夜外围
+app.get('/api/global', async (req, res) => {
+  try {
+    res.json(await getGlobal());
+  } catch (e) {
+    res.status(502).json({ error: e.message });
+  }
+});
+
+// 7×24 快讯
+app.get('/api/news', async (req, res) => {
+  try {
+    res.json(await getNews(30));
+  } catch (e) {
+    res.status(502).json({ error: e.message });
+  }
+});
+
+// 历史库状态
+app.get('/api/history/status', (req, res) => {
+  res.json({
+    ready: historyState.meta.count > 0,
+    count: historyState.meta.count,
+    lastBarDate: historyState.meta.lastBarDate,
+    updatedAt: historyState.meta.updatedAt,
+    progress: historyState.progress,
+  });
 });
 
 app.get('/api/stream', (req, res) => {

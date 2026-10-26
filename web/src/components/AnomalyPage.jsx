@@ -1,0 +1,100 @@
+// 异动监控：基于 SSE tick 流做逐帧对比（涨幅榜/量比榜/成交额榜 + 自选股），捕捉急拉/跳水
+import { useEffect, useRef, useState } from 'react';
+import { fmtPrice, fmtPct, pctCls } from '../lib/format.js';
+
+const DELTA = 1.5; // 相邻两帧涨跌幅变化阈值（3秒内）
+
+export default function AnomalyPage({ tick, watch }) {
+  const prevRef = useRef(null);   // code -> pct
+  const [events, setEvents] = useState([]);
+
+  // 从 SSE tick 的三张榜单里提取个股 pct 做对比
+  useEffect(() => {
+    if (!tick) return;
+    const cur = new Map();
+    for (const s of [...(tick.gainers || []), ...(tick.volRatio || []), ...(tick.amountTop || [])]) {
+      if (Number.isFinite(s.pct)) cur.set(s.code, { name: s.name, pct: s.pct, price: s.price });
+    }
+    const prev = prevRef.current;
+    prevRef.current = cur;
+    if (!prev) return;
+    const fresh = [];
+    const now = Date.now();
+    for (const [code, info] of cur) {
+      const p = prev.get(code);
+      if (!p) continue;
+      const d = info.pct - p.pct;
+      if (Math.abs(d) >= DELTA) {
+        fresh.push({
+          id: now + '-' + code,
+          time: now, code, name: info.name, price: info.price,
+          from: p.pct, to: info.pct, delta: +d.toFixed(2),
+          type: d > 0 ? '急拉' : '跳水',
+        });
+      }
+    }
+    if (fresh.length) setEvents((e) => [...fresh, ...e].slice(0, 120));
+  }, [tick]);
+
+  // 自选股单独 3 秒轮询对比（覆盖不在榜单里的票）
+  const watchPrev = useRef(null);
+  const codes = (watch || []).map((x) => x.code).join(',');
+  useEffect(() => {
+    if (!codes) return;
+    const t = setInterval(async () => {
+      try {
+        const rows = await (await fetch('/api/quotes?codes=' + codes)).json();
+        const prev = watchPrev.current;
+        watchPrev.current = new Map(rows.map((r) => [r.code, r]));
+        if (!prev) return;
+        const now = Date.now();
+        const fresh = [];
+        for (const r of rows) {
+          const p = prev.get(r.code);
+          if (!p || !Number.isFinite(r.pct) || !Number.isFinite(p.pct)) continue;
+          const d = r.pct - p.pct;
+          if (Math.abs(d) >= DELTA) {
+            fresh.push({
+              id: now + '-w-' + r.code, time: now, code: r.code, name: r.name, price: r.price,
+              from: p.pct, to: r.pct, delta: +d.toFixed(2),
+              type: d > 0 ? '急拉' : '跳水', watch: true,
+            });
+          }
+        }
+        if (fresh.length) setEvents((e) => [...fresh, ...e].slice(0, 120));
+      } catch { /* 忽略 */ }
+    }, 3000);
+    return () => clearInterval(t);
+  }, [codes]);
+
+  return (
+    <div className="page">
+      <h2 className="page-title">
+        异动监控
+        <span className="page-tag">3 秒级帧对比 · 阈值 ±{DELTA}%</span>
+      </h2>
+      <div className="hint" style={{ marginBottom: 10 }}>
+        监控范围：涨幅榜/量比榜/成交额榜前 50 + 你的自选股。急拉=短时放量上攻（打板/半路信号），跳水=承接失败（持仓警戒）。
+      </div>
+      <table className="tbl">
+        <thead>
+          <tr><th>时间</th><th>类型</th><th>名称</th><th>现价</th><th>涨幅变化</th><th>当前涨幅</th><th></th></tr>
+        </thead>
+        <tbody>
+          {events.length === 0 && <tr><td colSpan={7} className="empty">暂无异动 —— 交易时段 3 秒一帧，出现快速拉升/跳水会立即出现在这里</td></tr>}
+          {events.map((e) => (
+            <tr key={e.id} className={e.type === '急拉' ? 'row-up' : 'row-down'}>
+              <td className="muted">{new Date(e.time).toLocaleTimeString('zh-CN', { hour12: false })}</td>
+              <td><span className={`lb ${e.type === '急拉' ? 'lb-high' : 'lb-green'}`}>{e.type}{e.watch ? '·自选' : ''}</span></td>
+              <td className="name">{e.name}<small>{e.code}</small></td>
+              <td>{fmtPrice(e.price)}</td>
+              <td className={pctCls(e.delta)}>{e.from.toFixed(1)}% → {e.to.toFixed(1)}%</td>
+              <td className={`bold ${pctCls(e.to)}`}>{fmtPct(e.to)}</td>
+              <td className="muted">{Math.abs(e.delta) >= 3 ? '强异动' : ''}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
+}

@@ -6,21 +6,50 @@ import EmotionPanel from './components/EmotionPanel.jsx';
 import ZtPool from './components/ZtPool.jsx';
 import Ranks from './components/Ranks.jsx';
 import Watchlist from './components/Watchlist.jsx';
+import PreMarket from './components/PreMarket.jsx';
+import AuctionPage from './components/AuctionPage.jsx';
+import ScanPage from './components/ScanPage.jsx';
+import AnomalyPage from './components/AnomalyPage.jsx';
+import KnowledgePage from './components/KnowledgePage.jsx';
+import JournalPage from './components/JournalPage.jsx';
 
-const TABS = [
-  { key: 'emotion', label: '情绪总览' },
-  { key: 'ztpool', label: '涨停池' },
-  { key: 'ranks', label: '扫描榜' },
-  { key: 'watch', label: '自选' },
+const MENU = [
+  {
+    group: '盘前',
+    items: [
+      { key: 'premarket', label: '盘前决策', comp: PreMarket },
+      { key: 'auction', label: '竞价雷达', comp: AuctionPage },
+    ],
+  },
+  {
+    group: '盘中',
+    items: [
+      { key: 'emotion', label: '情绪总览', comp: EmotionPanel },
+      { key: 'ranks', label: '市场扫描', comp: (p) => <Ranks {...p} />, badge: 'ranks' },
+      { key: 'ztpool', label: '涨停天梯', comp: ZtPool, badge: 'zt' },
+      { key: 'scan', label: '形态选股', comp: ScanPage },
+      { key: 'reflow', label: '龙头回流', comp: (p) => <ScanPage {...p} section="reflow" /> },
+      { key: 'watch', label: '自选盯盘', comp: Watchlist },
+      { key: 'anomaly', label: '异动监控', comp: AnomalyPage },
+    ],
+  },
+  {
+    group: '复盘与学习',
+    items: [
+      { key: 'journal', label: '交易日志', comp: JournalPage },
+      { key: 'knowledge', label: '超短知识库', comp: KnowledgePage },
+    ],
+  },
 ];
 
 export default function App() {
   const [tick, setTick] = useState(null);
-  const [pools, setPools] = useState({ zt: [], zb: [], dt: [] });
+  const [pools, setPools] = useState({ zt: [], zb: [], dt: [], prevZt: [] });
   const [updatedAt, setUpdatedAt] = useState(null);
   const [tradingDay, setTradingDay] = useState(null);
   const [live, setLive] = useState(false);
-  const [tab, setTab] = useState('emotion');
+  const [tab, setTab] = useState('premarket');
+  const [collapsed, setCollapsed] = useState(false);
   const [watch, setWatch] = useState(() => {
     try {
       return JSON.parse(localStorage.getItem('watchlist') || '[]');
@@ -35,11 +64,12 @@ export default function App() {
       if (msg.type === 'tick') {
         setTick(msg.payload);
         setUpdatedAt(msg.payload?.updatedAt ?? null);
+        if (msg.payload?.tradingDay) setTradingDay(msg.payload.tradingDay);
       } else if (msg.type === 'pools') {
         setPools(msg.payload);
       } else if (msg.type === 'snapshot') {
         setTick(msg.tick);
-        setPools(msg.pools || { zt: [], zb: [], dt: [] });
+        setPools(msg.pools || { zt: [], zb: [], dt: [], prevZt: [] });
         setUpdatedAt(msg.updatedAt ?? null);
         setTradingDay(msg.tradingDay ?? null);
       }
@@ -64,36 +94,65 @@ export default function App() {
     });
   };
 
+  const badgeOf = (key) => {
+    if (key === 'zt') return tick?.ztCount || null;
+    if (key === 'ranks') return null;
+    return null;
+  };
+
+  const ActiveComp = MENU.flatMap((g) => g.items).find((i) => i.key === tab)?.comp;
+  const showStrip = tab !== 'premarket';
+
   return (
-    <div className="app">
-      <header className="topbar">
-        <div className="brand">短线看盘<span className="sub">kanpan</span></div>
-        <div className="status">
-          {tradingDay && <span className="day">交易日 {tradingDay.slice(4, 6)}/{tradingDay.slice(6, 8)}</span>}
-          {tick?.sourceFallback && <span className="fallback-badge" title="东财接口被限频，已自动切换新浪/腾讯备源">⚠ 备用数据源</span>}
-          {tick && <span className="phase">{PHASE_LABEL[tick.phase] || tick.phase}</span>}
-          <span className={`dot ${live ? 'on' : ''}`} />
-          <span className="ts">{fmtTime(updatedAt)}</span>
+    <div className={`shell ${collapsed ? 'collapsed' : ''}`}>
+      <aside className="sidebar">
+        <div className="brand">
+          <span className="logo">K</span>
+          {!collapsed && (
+            <div>
+              <div className="brand-name">短线看盘</div>
+              <div className="brand-sub">超短 · 实时 · 免费</div>
+            </div>
+          )}
         </div>
-      </header>
+        <nav className="menu">
+          {MENU.map((g) => (
+            <div className="menu-group" key={g.group}>
+              {!collapsed && <div className="menu-title">{g.group}</div>}
+              {g.items.map((it) => {
+                const badge = badgeOf(it.key);
+                return (
+                  <button
+                    key={it.key}
+                    className={`menu-item ${tab === it.key ? 'active' : ''}`}
+                    title={it.label}
+                    onClick={() => setTab(it.key)}
+                  >
+                    <span className="menu-label">{it.label}</span>
+                    {badge != null && !collapsed && <em>{badge}</em>}
+                  </button>
+                );
+              })}
+            </div>
+          ))}
+        </nav>
+        <div className="sidebar-foot">
+          {!collapsed && (
+            <>
+              <div className={`dot ${live ? 'on' : ''}`} />
+              <span className="ts">{fmtTime(updatedAt)}</span>
+              {tick && <span className="phase">{PHASE_LABEL[tick.phase] || tick.phase}</span>}
+              {tradingDay && <span className="day">{tradingDay.slice(4, 6)}/{tradingDay.slice(6, 8)}</span>}
+              {tick?.sourceFallback && <span className="fallback-badge" title="东财限频，已切新浪/腾讯备源">⚠备源</span>}
+            </>
+          )}
+          <button className="collapse-btn" onClick={() => setCollapsed(!collapsed)}>{collapsed ? '»' : '«'}</button>
+        </div>
+      </aside>
 
-      <IndexStrip tick={tick} />
-
-      <nav className="tabs">
-        {TABS.map((t) => (
-          <button key={t.key} className={tab === t.key ? 'active' : ''} onClick={() => setTab(t.key)}>
-            {t.label}
-            {t.key === 'ztpool' && tick?.ztCount != null && <em>{tick.ztCount}</em>}
-            {t.key === 'watch' && watch.length > 0 && <em>{watch.length}</em>}
-          </button>
-        ))}
-      </nav>
-
-      <main>
-        {tab === 'emotion' && <EmotionPanel tick={tick} pools={pools} />}
-        {tab === 'ztpool' && <ZtPool tick={tick} pools={pools} onWatch={addWatch} />}
-        {tab === 'ranks' && <Ranks tick={tick} onWatch={addWatch} />}
-        {tab === 'watch' && <Watchlist watch={watch} onRemove={removeWatch} onAdd={addWatch} />}
+      <main className="content">
+        {showStrip && <IndexStrip tick={tick} />}
+        {ActiveComp && <ActiveComp tick={tick} pools={pools} onWatch={addWatch} watch={watch} onRemove={removeWatch} />}
       </main>
     </div>
   );

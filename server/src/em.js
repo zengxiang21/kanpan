@@ -25,7 +25,7 @@ async function fetchText(url, headers, timeoutMs = 8000) {
 }
 
 const fetchJSON = async (url, headers, t = 8000) => JSON.parse(await fetchText(url, headers, t));
-const fetchGBK = async (url, headers, t = 8000) => new TextDecoder('gbk').decode(await (await fetch(url, { headers, signal: AbortSignal.timeout(t) })).arrayBuffer());
+export const fetchGBK = async (url, headers, t = 8000) => new TextDecoder('gbk').decode(await (await fetch(url, { headers, signal: AbortSignal.timeout(t) })).arrayBuffer());
 
 // ---------- 源健康：东财失败 2 次即熔断 10 分钟 ----------
 const health = { emDownUntil: 0, emFails: 0, emLastError: null, lastEmOkAt: null };
@@ -289,4 +289,42 @@ function mapPool(p) {
 export async function getPool(kind, date) {
   const d = await fetchJSON(poolUrl(kind, date), HEADERS_EM);
   return (d?.data?.pool || []).map(mapPool);
+}
+
+// ================= 隔夜外围（新浪 int_ 全球指数 + A50 期货） =================
+const GLOBAL_LIST = 'int_dji,int_nasdaq,int_sp500,int_hangseng,int_nikkei,hf_CHA50CFD';
+
+export async function getGlobal() {
+  const txt = await fetchGBK(`https://hq.sinajs.cn/list=${GLOBAL_LIST}`, HEADERS_SINA);
+  const out = [];
+  for (const m of txt.matchAll(/hq_str_(\w+)="([^"]*)"/g)) {
+    const f = m[2].split(',');
+    if (m[1].startsWith('int_')) {
+      if (f.length < 4) continue;
+      out.push({ key: m[1], name: f[0], price: parseFloat(f[1]), change: parseFloat(f[2]), pct: parseFloat(f[3]) });
+    } else if (m[1] === 'hf_CHA50CFD') {
+      if (f.length < 9) continue;
+      const price = parseFloat(f[0]);
+      const prev = parseFloat(f[7]);
+      out.push({
+        key: 'a50', name: '富时A50期货', price,
+        change: +(price - prev).toFixed(1),
+        pct: prev ? +(((price - prev) / prev) * 100).toFixed(2) : 0,
+      });
+    }
+  }
+  return out;
+}
+
+// ================= 7×24 快讯（新浪滚动财经） =================
+export async function getNews(num = 30) {
+  const d = JSON.parse(
+    await fetchText(`https://feed.mix.sina.com.cn/api/roll/get?pageid=153&lid=2516&num=${num}&page=1`, HEADERS_SINA)
+  );
+  return (d?.result?.data || []).map((x) => ({
+    title: x.title,
+    time: x.ctime ? x.ctime * 1000 : null,
+    url: x.url || null,
+    media: x.media_name || null,
+  }));
 }

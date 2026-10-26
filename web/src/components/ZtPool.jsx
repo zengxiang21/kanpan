@@ -42,7 +42,8 @@ function PoolTable({ rows, onWatch, watchCodes }) {
 
 export default function ZtPool({ tick, pools, onWatch }) {
   const [q, setQ] = useState('');
-  const watchCodes = useMemo(() => new Set(), []); // 自选集合由 ZtPool 外部传入更佳，此处仅展示
+  const [view, setView] = useState('ladder');
+  const watchCodes = useMemo(() => new Set(), []);
   const zt = useMemo(() => {
     const list = pools?.zt || [];
     if (!q.trim()) return list;
@@ -50,13 +51,53 @@ export default function ZtPool({ tick, pools, onWatch }) {
     return list.filter((s) => s.name.includes(k) || s.code.includes(k) || (s.industry || '').includes(k));
   }, [pools, q]);
 
+  // 天梯：按连板高度分组
+  const ladder = useMemo(() => {
+    const g = new Map();
+    for (const s of zt) {
+      const h = s.lianban || 1;
+      if (!g.has(h)) g.set(h, []);
+      g.get(h).push(s);
+    }
+    return [...g.entries()].sort((a, b) => b[0] - a[0]);
+  }, [zt]);
+
   return (
     <div className="ztpool">
       <div className="toolbar">
         <input placeholder="搜索 名称/代码/行业" value={q} onChange={(e) => setQ(e.target.value)} />
-        <span className="hint">共 {zt.length} 家涨停 · 数据 {tick ? '实时' : ''}</span>
+        <span className="hint">共 {zt.length} 家涨停 · 最高 {tick?.maxLianban || 0} 板</span>
+        <span className="flex-sp" />
+        <button className={`mini ${view === 'ladder' ? 'active-mini' : ''}`} onClick={() => setView('ladder')}>天梯</button>
+        <button className={`mini ${view === 'table' ? 'active-mini' : ''}`} onClick={() => setView('table')}>列表</button>
       </div>
-      <PoolTable rows={zt} onWatch={onWatch} watchCodes={watchCodes} />
+
+      {view === 'ladder' && (
+        <div className="tianti">
+          {ladder.map(([h, stocks]) => (
+            <div className="panel tianti-row" key={h}>
+              <div className="tianti-head">
+                <span className={`lb ${h >= 3 ? 'lb-high' : ''}`}>{h}板</span>
+                <span className="tianti-count">{stocks.length} 只</span>
+                <span className="tianti-fund">封单合计 {fmtAmount(stocks.reduce((s, x) => s + (x.sealFund || 0), 0))}</span>
+                {h === Math.max(...ladder.map(([hh]) => hh)) && <span className="tag-hot">最高板</span>}
+              </div>
+              <div className="tianti-stocks">
+                {stocks.map((s) => (
+                  <button className="stock-chip" key={s.code} title={`${s.industry || ''} · 首封 ${s.firstSeal || '-'} · 炸板${s.zhaCount}次`} onClick={() => onWatch(s.code, s.name)}>
+                    <b>{s.name}</b>
+                    <span className={pctCls(s.pct)}>{fmtPct(s.pct)}</span>
+                    <small>{s.firstSeal || '-'}</small>
+                  </button>
+                ))}
+              </div>
+            </div>
+          ))}
+          {ladder.length === 0 && <div className="empty">暂无涨停数据</div>}
+        </div>
+      )}
+
+      {view === 'table' && <PoolTable rows={zt} onWatch={onWatch} watchCodes={watchCodes} />}
 
       <details>
         <summary>炸板池（{pools?.zb?.length || 0}）</summary>

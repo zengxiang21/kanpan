@@ -36,14 +36,23 @@ export default function EmotionPanel({ tick, pools }) {
     <div className="emotion">
       <div className="cards">
         <div className="card">
+          <div className="k">开仓环境</div>
+          <div className="v">{tick.env ? tick.env.total : '-'}</div>
+          <div className="note">{tick.env ? tick.env.label + ' · ' + tick.env.advice : ''}</div>
+        </div>
+        <div className="card">
           <div className="k">市场情绪</div>
           <div className={`v label ${LABEL_STYLE[t.emotionLabel] || 'lab-neutral'}`}>{t.emotionLabel}</div>
           <div className="note">{comment(t)}</div>
         </div>
         <div className="card"><div className="k">涨停</div><div className="v up">{t.ztCount}</div><div className="note">炸板 {t.zbCount} 家</div></div>
         <div className="card"><div className="k">炸板率</div><div className="v">{t.zhaRate != null ? (t.zhaRate * 100).toFixed(0) + '%' : '-'}</div><div className="note">{t.zhaRate != null && t.zhaRate > 0.3 ? '封板质量差' : '封板质量正常'}</div></div>
-        <div className="card"><div className="k">跌停</div><div className="v down">{t.dtCount}</div><div className="note">亏钱效应观察</div></div>
         <div className="card"><div className="k">最高连板</div><div className="v">{t.maxLianban || 0}<small>板</small></div><div className="note">空间高度</div></div>
+        <div className="card">
+          <div className="k">昨日涨停溢价</div>
+          <div className={`v ${t.premium ? (t.premium.avg > 0 ? 'up' : 'down') : ''}`}>{t.premium ? (t.premium.avg > 0 ? '+' : '') + t.premium.avg + '%' : '-'}</div>
+          <div className="note">{t.premium ? `中位 ${t.premium.median}% · 翻红 ${t.premium.redRate}%` : '待今日开盘'}</div>
+        </div>
         <div className="card">
           <div className="k">上涨 / 下跌</div>
           <div className="v"><span className="up">{fmtInt(t.advancers)}</span> / <span className="down">{fmtInt(t.decliners)}</span></div>
@@ -59,6 +68,17 @@ export default function EmotionPanel({ tick, pools }) {
           </div>
         </div>
       </div>
+
+      {t.jinji && t.jinji.length > 0 && (
+        <div className="panel jinji-panel">
+          <h3>连板晋级率</h3>
+          <div className="jinji-line">
+            {t.jinji.map((j) => (
+              <span key={j.from} className="jinji-item">{j.from}进{j.to} <b className={j.rate >= 40 ? 'up' : j.rate >= 20 ? '' : 'down'}>{j.rate}%</b><small>({j.num}/{j.den})</small></span>
+            ))}
+          </div>
+        </div>
+      )}
 
       <div className="row2">
         <div className="panel">

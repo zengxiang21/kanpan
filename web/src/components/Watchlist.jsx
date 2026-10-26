@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { fmtPrice, fmtPct, pctCls, fmtAmount, fmtCap } from '../lib/format.js';
 
-export default function Watchlist({ watch, onRemove, onAdd }) {
+export default function Watchlist({ watch, onRemove, onWatch }) {
   const [rows, setRows] = useState([]);
   const [input, setInput] = useState('');
   const codes = watch.map((x) => x.code).join(',');
@@ -34,7 +34,7 @@ export default function Watchlist({ watch, onRemove, onAdd }) {
     e.preventDefault();
     const code = input.trim();
     if (!/^\d{6}$/.test(code)) return;
-    onAdd(code, names.current.get(code) || code);
+    onWatch(code, names.current.get(code) || code);
     setInput('');
   };
 
