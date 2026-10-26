@@ -3,10 +3,10 @@ import express from 'express';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { state, startScheduler, marketPhase, runSweep } from './state.js';
-import { getQuotes, getNews, getGlobal, getMinute, sourceStatus } from './em.js';
+import { getQuotes, getNews, getGlobal, getMinute, getUSStocks, getSentiment, sourceStatus } from './em.js';
 import { scanAll, reflowScan, auctionScan } from './scan.js';
 import { historyState, getKline } from './history.js';
-import { buildReview, saveReviewIfNeeded, latestSavedReview, buildPlans } from './review.js';
+import { buildReview, saveReviewIfNeeded, latestSavedReview, buildPlans, reviewDates, reviewByDate } from './review.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const PORT = process.env.PORT || 8000;
@@ -117,6 +117,35 @@ app.get('/api/plan', async (req, res) => {
   } catch (e) {
     res.status(502).json({ error: e.message });
   }
+});
+
+// 美股明星股（隔夜方向）
+app.get('/api/us', async (req, res) => {
+  try {
+    res.json(await getUSStocks());
+  } catch (e) {
+    res.status(502).json({ error: e.message });
+  }
+});
+
+// 舆论热度（快讯 × 题材词典词频）
+app.get('/api/sentiment', async (req, res) => {
+  try {
+    res.json(await getSentiment());
+  } catch (e) {
+    res.status(502).json({ error: e.message });
+  }
+});
+
+// 历史复盘日期列表
+app.get('/api/review/dates', (req, res) => {
+  res.json(reviewDates());
+});
+
+// 读取指定日期的已存复盘
+app.get('/api/review/bydate', (req, res) => {
+  const date = String(req.query.date || '');
+  res.json(reviewByDate(date));
 });
 
 // 历史库状态

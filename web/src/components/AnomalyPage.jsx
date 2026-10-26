@@ -4,9 +4,57 @@ import { fmtPrice, fmtPct, pctCls } from '../lib/format.js';
 
 const DELTA = 1.5; // 相邻两帧涨跌幅变化阈值（3秒内）
 
-export default function AnomalyPage({ tick, watch, onOpenStock }) {
+function notify(title, body) {
+  try {
+    if (localStorage.getItem('notify-on') === '1' && typeof Notification !== 'undefined' && Notification.permission === 'granted') {
+      new Notification(title, { body, silent: false });
+    }
+  } catch { /* 通知失败不影响页面 */ }
+}
+
+export default function AnomalyPage({ tick, watch, pools, onOpenStock }) {
   const prevRef = useRef(null);   // code -> pct
   const [events, setEvents] = useState([]);
+  const [notifyOn, setNotifyOn] = useState(() => localStorage.getItem('notify-on') === '1');
+  const prevZbRef = useRef(null); // 炸板池 code 集合
+
+  // 炸板即时提醒：新进炸板池的票
+  useEffect(() => {
+    const zb = pools?.zb || [];
+    const codes = new Set(zb.map((s) => s.code));
+    const prev = prevZbRef.current;
+    prevZbRef.current = codes;
+    if (!prev) return;
+    const fresh = zb.filter((s) => !prev.has(s.code));
+    if (fresh.length) {
+      const now = Date.now();
+      const evts = fresh.map((s) => ({
+        id: now + '-zb-' + s.code, time: now, code: s.code, name: s.name,
+        price: s.price, from: null, to: s.pct, delta: null, type: '炸板',
+      }));
+      setEvents((e) => [...evts, ...e].slice(0, 120));
+      for (const s of fresh) notify(`⚠ 炸板：${s.name}`, `首次封板时间 ${s.firstSeal || '-'} · 现价 ${s.price}`);
+    }
+  }, [pools]);
+
+  const toggleNotify = async () => {
+    if (notifyOn) {
+      localStorage.setItem('notify-on', '0');
+      setNotifyOn(false);
+      return;
+    }
+    try {
+      if (typeof Notification !== 'undefined' && Notification.permission !== 'granted') {
+        await Notification.requestPermission();
+      }
+      localStorage.setItem('notify-on', '1');
+      setNotifyOn(true);
+      notify('✅ 异动通知已开启', '急拉/跳水/炸板会推送浏览器通知');
+    } catch {
+      localStorage.setItem('notify-on', '1');
+      setNotifyOn(true);
+    }
+  };
 
   // 从 SSE tick 的三张榜单里提取个股 pct 做对比
   useEffect(() => {
@@ -33,7 +81,12 @@ export default function AnomalyPage({ tick, watch, onOpenStock }) {
         });
       }
     }
-    if (fresh.length) setEvents((e) => [...fresh, ...e].slice(0, 120));
+    if (fresh.length) {
+      setEvents((e) => [...fresh, ...e].slice(0, 120));
+      for (const ev of fresh) {
+        if (Math.abs(ev.delta) >= 2.5) notify(`${ev.type === '急拉' ? '🔥' : '💧'} ${ev.name} ${ev.type}`, `${ev.from.toFixed(1)}% → ${ev.to.toFixed(1)}%`);
+      }
+    }
   }, [tick]);
 
   // 自选股单独 3 秒轮询对比（覆盖不在榜单里的票）
@@ -72,9 +125,12 @@ export default function AnomalyPage({ tick, watch, onOpenStock }) {
       <h2 className="page-title">
         异动监控
         <span className="page-tag">3 秒级帧对比 · 阈值 ±{DELTA}%</span>
+        <button className={`mini ${notifyOn ? 'active-mini' : ''}`} onClick={toggleNotify}>
+          {notifyOn ? '🔔 通知已开' : '🔕 开启浏览器通知'}
+        </button>
       </h2>
       <div className="hint" style={{ marginBottom: 10 }}>
-        监控范围：涨幅榜/量比榜/成交额榜前 50 + 你的自选股。急拉=短时放量上攻（打板/半路信号），跳水=承接失败（持仓警戒）。
+        监控范围：涨幅榜/量比榜/成交额榜前 50 + 自选股 + 涨停池炸板事件。急拉=短时放量上攻（打板/半路信号），跳水=承接失败（持仓警戒）。
       </div>
       <table className="tbl">
         <thead>
@@ -88,7 +144,7 @@ export default function AnomalyPage({ tick, watch, onOpenStock }) {
               <td><span className={`lb ${e.type === '急拉' ? 'lb-high' : 'lb-green'}`}>{e.type}{e.watch ? '·自选' : ''}</span></td>
               <td className="name"><span className="name-link" onClick={() => onOpenStock(e.code, e.name)}>{e.name}<small>{e.code}</small></span></td>
               <td>{fmtPrice(e.price)}</td>
-              <td className={pctCls(e.delta)}>{e.from.toFixed(1)}% → {e.to.toFixed(1)}%</td>
+              <td className={pctCls(e.delta)}>{e.from != null ? `${e.from.toFixed(1)}% → ${e.to.toFixed(1)}%` : '涨停→炸板'}</td>
               <td className={`bold ${pctCls(e.to)}`}>{fmtPct(e.to)}</td>
               <td className="muted">{Math.abs(e.delta) >= 3 ? '强异动' : ''}</td>
             </tr>

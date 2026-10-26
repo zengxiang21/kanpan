@@ -14,12 +14,16 @@ const GLOBAL_MAP = {
 
 export default function PreMarket({ tick }) {
   const [global, setGlobal] = useState([]);
+  const [us, setUs] = useState([]);
   const [news, setNews] = useState([]);
+  const [sent, setSent] = useState(null);
 
   useEffect(() => {
     const load = () => {
       fetch('/api/global').then((r) => r.json()).then((d) => Array.isArray(d) && setGlobal(d)).catch(() => {});
+      fetch('/api/us').then((r) => r.json()).then((d) => Array.isArray(d) && setUs(d)).catch(() => {});
       fetch('/api/news').then((r) => r.json()).then((d) => Array.isArray(d) && setNews(d)).catch(() => {});
+      fetch('/api/sentiment').then((r) => r.json()).then((d) => d && d.themes && setSent(d)).catch(() => {});
     };
     load();
     const t = setInterval(load, 60_000);
@@ -86,24 +90,53 @@ export default function PreMarket({ tick }) {
         </div>
       </div>
 
+      <div className="panel" style={{ marginBottom: 12 }}>
+        <h3>隔夜外围 · 方向映射</h3>
+        <div className="us-grid">
+          {global.map((g) => (
+            <div className="us-card" key={g.key}>
+              <div className="us-head"><b>{g.name}</b><span className={g.pct > 0 ? 'up' : g.pct < 0 ? 'down' : 'muted'}>{g.pct > 0 ? '+' : ''}{g.pct}%</span></div>
+              <div className="muted" style={{ fontSize: 11 }}>{GLOBAL_MAP[g.name] || ''} · {g.price}</div>
+            </div>
+          ))}
+          {global.length === 0 && <div className="empty">加载中…</div>}
+        </div>
+        <div className="hint">A50 期货是最直接的 A 股开盘先行指标</div>
+      </div>
+
+      <div className="panel" style={{ marginBottom: 12 }}>
+        <h3>美股明星股 · 隔夜方向 → A股概念映射</h3>
+        <div className="us-grid">
+          {us.map((s) => (
+            <div className="us-card" key={s.key}>
+              <div className="us-head">
+                <b>{s.name}</b>
+                <span className={s.pct > 0 ? 'up' : s.pct < 0 ? 'down' : 'muted'}>{s.pct != null ? (s.pct > 0 ? '+' : '') + s.pct + '%' : '-'}</span>
+              </div>
+              <div className="note">{s.map}</div>
+            </div>
+          ))}
+          {us.length === 0 && <div className="empty">加载中…</div>}
+        </div>
+        <div className="hint">隔夜大涨方向 = 今日 A 股对应概念的抢筹预期，到竞价雷达里验证</div>
+      </div>
+
       <div className="row2">
         <div className="panel">
-          <h3>隔夜外围 · 方向映射</h3>
+          <h3>舆论热度 · 快讯题材词频（最近 60 条）</h3>
           <table className="tbl compact">
-            <thead><tr><th>市场</th><th>最新</th><th>涨跌</th><th>对 A 股的方向含义</th></tr></thead>
             <tbody>
-              {global.map((g) => (
-                <tr key={g.key}>
-                  <td className="name">{g.name}</td>
-                  <td className={g.pct > 0 ? 'up' : g.pct < 0 ? 'down' : ''}>{g.price}</td>
-                  <td className={g.pct > 0 ? 'up' : g.pct < 0 ? 'down' : ''}>{g.pct > 0 ? '+' : ''}{g.pct}%</td>
-                  <td className="muted">{GLOBAL_MAP[g.name] || ''}</td>
+              {(sent?.themes || []).slice(0, 8).map((t) => (
+                <tr key={t.name}>
+                  <td className="name" style={{ width: 90 }}>{t.name}</td>
+                  <td style={{ width: 60 }} className={t.count >= 3 ? 'up bold' : ''}>{t.count} 条</td>
+                  <td className="muted reasons-cell">{(t.examples || []).join('；')}</td>
                 </tr>
               ))}
-              {global.length === 0 && <tr><td colSpan={4} className="empty">加载中…</td></tr>}
+              {(!sent || !sent.themes?.length) && <tr><td className="empty" colSpan={3}>暂无热点命中</td></tr>}
             </tbody>
           </table>
-          <div className="hint">A50 期货是最直接的 A 股开盘先行指标；隔夜大涨方向 = 今日高开预期方向（竞价雷达里验证）</div>
+          <div className="hint">词频高 = 舆论在炒的方向；配合题材热度（涨停家数）交叉验证——光有新闻没资金的不碰</div>
         </div>
         <div className="panel">
           <h3>7×24 快讯 · 舆论方向</h3>

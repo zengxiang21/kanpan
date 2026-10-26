@@ -123,6 +123,24 @@ export function saveReviewIfNeeded(state, phase) {
   }
 }
 
+// 历史存档日期列表 / 读取指定日期
+export function reviewDates() {
+  try {
+    return fs.readdirSync(DIR).filter((f) => f.endsWith('.json')).map((f) => f.replace('.json', '')).sort().reverse();
+  } catch {
+    return [];
+  }
+}
+
+export function reviewByDate(date) {
+  try {
+    if (!/^\d{8}$/.test(date)) return null;
+    return JSON.parse(fs.readFileSync(path.join(DIR, `${date}.json`), 'utf8'));
+  } catch {
+    return null;
+  }
+}
+
 // 最近一份已保存的复盘
 export function latestSavedReview() {
   try {

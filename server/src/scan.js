@@ -63,7 +63,7 @@ export function scanAll(sweepRows) {
     downloadDone: historyState.progress.done,
     downloadTotal: historyState.progress.total,
   };
-  const out = { fangliang: [], huita: [], meta };
+  const out = { fangliang: [], huita: [], duotou: [], meta };
   if (!sweepRows || !historyState.bars || meta.historyCount < 100) return out;
 
   const C = PARAMS.common;
@@ -110,6 +110,27 @@ export function scanAll(sweepRows) {
       }
     }
 
+    // ---- 均线多头 ----
+    {
+      let ok = !!(a.ma5 && a.ma10 && a.ma20 && a.ma5 > a.ma10 && a.ma10 > a.ma20);
+      if (ok && !(s.price > a.ma5)) ok = false;
+      if (ok && !(s.pct >= 0.5 && s.pct <= 6)) ok = false;
+      if (ok && isLimitUp) ok = false;
+      if (ok && !(volTimes != null && volTimes >= 0.8 && volTimes <= 2.5)) ok = false;
+      if (ok) {
+        reasons.push('MA5>MA10>MA20', `站稳MA5(${a.ma5.toFixed(2)})`, `温和放量 ${volTimes.toFixed(1)}倍`);
+        const score = Math.min(
+          99,
+          Math.round(
+            60 + (a.strongDay > 0 ? 8 : 0) +
+            (s.turnover >= 3 && s.turnover <= 15 ? 8 : 0) +
+            (a.ma20 && s.price / a.ma20 < 1.15 ? 6 : 0)
+          )
+        );
+        out.duotou.push(row(s, score, volTimes, reasons));
+      }
+    }
+
     // ---- 缩量回踩 ----
     {
       const P = PARAMS.huita;
@@ -141,8 +162,10 @@ export function scanAll(sweepRows) {
 
   out.fangliang.sort((x, y) => y.score - x.score);
   out.huita.sort((x, y) => y.score - x.score);
+  out.duotou.sort((x, y) => y.score - x.score);
   out.fangliang = out.fangliang.slice(0, 60);
   out.huita = out.huita.slice(0, 60);
+  out.duotou = out.duotou.slice(0, 60);
   return out;
 }
 

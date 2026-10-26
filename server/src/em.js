@@ -361,3 +361,66 @@ export async function getNews(num = 30) {
     media: x.media_name || null,
   }));
 }
+
+// ================= 美股明星股（隔夜方向 → A股概念映射） =================
+export const US_MAP = [
+  { key: 'NVDA', map: '算力 / CPO / 液冷' },
+  { key: 'AMD', map: '芯片 / 算力' },
+  { key: 'TSM', map: '半导体 / 先进制程' },
+  { key: 'ASML', map: '光刻机' },
+  { key: 'AAPL', map: '苹果链 / 消费电子' },
+  { key: 'TSLA', map: '特斯拉链 / 人形机器人' },
+  { key: 'MSFT', map: 'AI 应用 / 软件' },
+  { key: 'BABA', map: '阿里概念 / 云计算' },
+  { key: 'PDD', map: '电商 / 跨境' },
+  { key: 'BIDU', map: '百度概念 / AI' },
+  { key: 'NIO', map: '新能源车' },
+  { key: 'COIN', map: '加密货币概念' },
+];
+
+export async function getUSStocks() {
+  const q = US_MAP.map((s) => 'us' + s.key).join(',');
+  const txt = await fetchGBK(`https://qt.gtimg.cn/q=${q}`, {}, 8000);
+  const byKey = new Map();
+  for (const m of txt.matchAll(/v_us(\w+)="([^"]*)"/g)) {
+    const f = m[2].split('~');
+    if (f.length < 5 || !f[3]) continue;
+    const price = parseFloat(f[3]), prev = parseFloat(f[4]);
+    byKey.set(m[1], {
+      key: m[1], name: f[1], price,
+      pct: prev ? +(((price - prev) / prev) * 100).toFixed(2) : null,
+    });
+  }
+  return US_MAP.map((s) => ({ ...(byKey.get(s.key) || { key: s.key, name: s.key, price: null, pct: null }), map: s.map }));
+}
+
+// ================= 舆论热度：快讯标题 × 题材词典词频 =================
+export const THEME_WORDS = {
+  算力AI: ['算力', 'CPO', '光模块', '英伟达', '大模型', 'AI应用', 'OpenAI'],
+  机器人: ['机器人', '人形', '具身智能'],
+  半导体: ['芯片', '半导体', '光刻', '存储', '晶圆'],
+  汽车链: ['汽车', '智能驾驶', '自动驾驶', '车企', '新势力'],
+  军工: ['军工', '导弹', '军贸', '国防'],
+  医药: ['医药', '创新药', '减肥药', '疫苗', '医疗器械'],
+  券商金融: ['券商', '证券', '并购', '金融'],
+  地产基建: ['房地产', '地产', '基建', '城改'],
+  光伏储能: ['光伏', '硅料', '储能', '风电'],
+  锂电: ['锂电', '电池', '固态电池', '锂矿'],
+  低空经济: ['低空', 'eVTOL', '无人机'],
+  数据要素: ['数据要素', '数据资产', '东数西算'],
+  华为链: ['华为', '鸿蒙', '昇腾'],
+  黄金有色: ['黄金', '金价', '有色', '稀土'],
+  原油: ['原油', '油价', 'OPEC'],
+  消费: ['消费', '白酒', '零售', '旅游'],
+  农业: ['农业', '种业', '粮食'],
+  航运港口: ['航运', '港口', '集运'],
+};
+
+export async function getSentiment() {
+  const news = await getNews(60);
+  const themes = Object.entries(THEME_WORDS).map(([name, words]) => {
+    const hits = news.filter((n) => words.some((w) => (n.title || '').includes(w)));
+    return { name, count: hits.length, examples: hits.slice(0, 2).map((h) => (h.title || '').slice(0, 40)) };
+  }).sort((a, b) => b.count - a.count);
+  return { themes: themes.filter((t) => t.count > 0), newsCount: news.length, at: Date.now() };
+}

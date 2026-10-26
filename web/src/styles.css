@@ -237,6 +237,10 @@ tr.clickable { cursor: pointer; }
 .plan-head { display: flex; align-items: center; gap: 10px; margin-bottom: 8px; font-size: 13px; }
 .plan-cond { width: 190px; font-weight: 600; color: var(--accent); font-size: 12px; }
 .plan-action { white-space: normal !important; font-size: 12.5px; }
+.us-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 8px; }
+.us-card { background: var(--panel2); border: 1px solid var(--border); border-radius: 6px; padding: 7px 10px; }
+.us-head { display: flex; justify-content: space-between; align-items: center; font-size: 13px; }
+.date-select { background: var(--panel2); border: 1px solid var(--border); color: var(--text); border-radius: 5px; padding: 3px 8px; font-size: 12px; }
 
 @media (max-width: 1100px) {
   .index-strip { grid-template-columns: repeat(2, 1fr); }

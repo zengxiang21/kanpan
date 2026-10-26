@@ -78,9 +78,13 @@ export default function ScanPage({ tick, onWatch, onOpenStock, section = 'scan' 
             <h3>放量突破 · 量比≥1.8 + 突破20日高 + 涨3%~7%未板（能上车的位置）</h3>
             <ScanTable rows={data?.fangliang || []} onWatch={onWatch} onOpenStock={onOpenStock} emptyText={historyReady ? '当前无符合条件的标的' : '等待历史库就绪'} />
           </div>
-          <div className="panel">
+          <div className="panel" style={{ marginBottom: 12 }}>
             <h3>缩量回踩 · 近10日强势 + 回踩MA5/MA10±2.5% + 缩量至5日均量85%以下</h3>
             <ScanTable rows={data?.huita || []} onWatch={onWatch} onOpenStock={onOpenStock} emptyText={historyReady ? '当前无符合条件的标的' : '等待历史库就绪'} />
+          </div>
+          <div className="panel">
+            <h3>均线多头 · MA5&gt;MA10&gt;MA20 + 站稳MA5 + 温和放量（趋势跟随）</h3>
+            <ScanTable rows={data?.duotou || []} onWatch={onWatch} onOpenStock={onOpenStock} emptyText={historyReady ? '当前无符合条件的标的' : '等待历史库就绪'} />
           </div>
         </>
       )}

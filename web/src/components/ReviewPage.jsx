@@ -31,6 +31,8 @@ function PlanCard({ plan, onOpenStock }) {
 export default function ReviewPage({ tick, watch, onOpenStock }) {
   const [review, setReview] = useState(null);
   const [plans, setPlans] = useState([]);
+  const [dates, setDates] = useState([]);
+  const [viewDate, setViewDate] = useState(''); // 空 = 实时
   const [picked, setPicked] = useState(() => {
     try {
       return JSON.parse(localStorage.getItem('plan-picks') || '[]');
@@ -42,13 +44,22 @@ export default function ReviewPage({ tick, watch, onOpenStock }) {
   const flash = useFlash(review?.generatedAt, 60000);
 
   useEffect(() => {
+    fetch('/api/review/dates').then((r) => r.json()).then((d) => Array.isArray(d) && setDates(d)).catch(() => {});
+  }, []);
+
+  useEffect(() => {
     const load = async () => {
-      try { setReview(await (await fetch('/api/review')).json()); } catch { /* 保留旧 */ }
+      try {
+        const url = viewDate ? '/api/review/bydate?date=' + viewDate : '/api/review';
+        const d = await (await fetch(url)).json();
+        if (d && d.emotion) setReview(d);
+      } catch { /* 保留旧 */ }
     };
     load();
+    if (viewDate) return; // 历史存档不轮询
     const t = setInterval(load, 120_000);
     return () => clearInterval(t);
-  }, []);
+  }, [viewDate]);
 
   const codes = picked.join(',');
   useEffect(() => {
@@ -72,6 +83,12 @@ export default function ReviewPage({ tick, watch, onOpenStock }) {
         收盘复盘 · 明日应对
         <span className={`page-tag ${flash}`}>{review ? `交易日 ${review.date}` : '生成中…'}</span>
         <span className="page-tag">每交易日 15:05 自动落盘</span>
+        {dates.length > 0 && (
+          <select className="date-select" value={viewDate} onChange={(e) => setViewDate(e.target.value)}>
+            <option value="">最新（实时生成）</option>
+            {dates.map((d) => <option key={d} value={d}>存档 {d.slice(4, 6)}/{d.slice(6, 8)}</option>)}
+          </select>
+        )}
       </h2>
 
       {review && (
