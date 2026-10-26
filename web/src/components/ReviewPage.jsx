@@ -10,11 +10,21 @@ function PlanCard({ plan, onOpenStock }) {
         <span className="name-link" onClick={() => onOpenStock(plan.code, plan.name)}>
           <b>{plan.name}</b><small>{plan.code}</small>
         </span>
-        {plan.lianban ? <span className="lb lb-high">昨日{plan.lianban}板</span> : <span className="lb">非涨停股</span>}
-        {plan.pct != null && <span className={pctCls(plan.pct)}>{fmtPct(plan.pct)}</span>}
-        <span className="muted">{plan.ma5 ? `MA5 ${plan.ma5}` : ''} {plan.ma10 ? `MA10 ${plan.ma10}` : ''}</span>
+        <span className="lb lb-high">{plan.role}</span>
+        <span className="plan-mode">{plan.mode}</span>
+        {plan.lianban ? <span className="lb">昨日{plan.lianban}板</span> : null}
+        {plan.isTheme && <span className="lb">主线·{plan.industry}</span>}
       </div>
+      <div className="plan-meta">
+        <span>现价 {fmtPrice(plan.price)}({fmtPct(plan.pct)})</span>
+        {plan.ma5 && <span>MA5 {plan.ma5}</span>}
+        {plan.ma10 && <span>MA10 {plan.ma10}</span>}
+        {plan.vol5 != null && <span>5日均量 {(plan.vol5 / 100).toFixed(0)}手</span>}
+        <span className="pos-tag">仓位 {plan.position}</span>
+      </div>
+      <div className="plan-note">{plan.modeNote}</div>
       <table className="tbl compact">
+        <thead><tr><th style={{ width: 210 }}>竞价情景</th><th>操作</th></tr></thead>
         <tbody>
           {plan.scenarios.map((s, i) => (
             <tr key={i}>
@@ -24,6 +34,14 @@ function PlanCard({ plan, onOpenStock }) {
           ))}
         </tbody>
       </table>
+      <div className="plan-ckpt">
+        <div className="k">盘中检查点</div>
+        {plan.checkpoints.map((c) => (
+          <div className="ckpt-row" key={c[0]}><b>{c[0]}</b><span>{c[1]}</span></div>
+        ))}
+        <div className="ckpt-row stop"><b>止损</b><span>{plan.stop}</span></div>
+        <div className="ckpt-row"><b>目标</b><span>{plan.target}</span></div>
+      </div>
     </div>
   );
 }
@@ -69,7 +87,7 @@ export default function ReviewPage({ tick, watch, onOpenStock }) {
   }, [codes]);
 
   const addPick = (code) => {
-    if (!/^\d{6}$/.test(code) || picked.includes(code) || picked.length >= 4) return;
+    if (!/^\d{6}$/.test(code) || picked.includes(code) || picked.length >= 3) return;
     setPicked([...picked, code]);
   };
   const removePick = (code) => setPicked(picked.filter((c) => c !== code));
@@ -159,7 +177,7 @@ export default function ReviewPage({ tick, watch, onOpenStock }) {
       )}
 
       <div className="panel">
-        <h3>交易计划 · 关注股竞价应对（最多 4 只，9:15 竞价后照表执行）</h3>
+        <h3>交易计划 · 关注股作战卡（最多 3 只 · 9:15 竞价后照表执行）</h3>
         <div className="plan-picker">
           {(watch || []).map((w) => (
             <button key={w.code} className={`mini ${picked.includes(w.code) ? 'active-mini' : ''}`} onClick={() => picked.includes(w.code) ? removePick(w.code) : addPick(w.code)}>
@@ -168,11 +186,18 @@ export default function ReviewPage({ tick, watch, onOpenStock }) {
           ))}
           <input placeholder="或输代码加入" value={manual} onChange={(e) => setManual(e.target.value)} style={{ width: 130 }} />
           <button className="mini" onClick={() => { addPick(manual.trim()); setManual(''); }}>加入</button>
-          <span className="muted" style={{ fontSize: 12 }}>已选：{picked.length ? picked.join(', ') : '无'}</span>
+          <span className="muted" style={{ fontSize: 12 }}>
+            已选 {picked.length}/3：{picked.length ? picked.join(', ') : '无'}
+            {picked.length >= 3 ? ' · 已满，专注才有纪律' : ''}
+          </span>
+        </div>
+        <div className="hint" style={{ margin: '6px 0 10px' }}>
+          选票思路不必选最强的：情绪【{review?.emotion?.cycleStage || '…'}】阶段，主线题材的低位首板是确定性较高的<span className="up">套利板</span>；
+          龙头适合低吸/锁仓，跟风只做弱转强。每张卡按"竞价情景 → 检查点 → 止损止盈"执行。
         </div>
         <div className="row2" style={{ marginTop: 10 }}>
           {plans.map((p) => <PlanCard key={p.code} plan={p} onOpenStock={onOpenStock} />)}
-          {picked.length === 0 && <div className="empty">从自选股点选或输入代码，生成每只票的"高开/平开/低开"竞价应对表</div>}
+          {picked.length === 0 && <div className="empty">从自选股点选或输入代码（≤3 只），生成"竞价情景 + 检查点 + 止损止盈"作战卡</div>}
         </div>
       </div>
     </div>

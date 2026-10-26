@@ -7,6 +7,7 @@ import { getQuotes, getNews, getGlobal, getMinute, getUSStocks, getSentiment, so
 import { scanAll, reflowScan, auctionScan } from './scan.js';
 import { historyState, getKline } from './history.js';
 import { buildReview, saveReviewIfNeeded, latestSavedReview, buildPlans, reviewDates, reviewByDate } from './review.js';
+import { runBacktest } from './backtest.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const PORT = process.env.PORT || 8000;
@@ -146,6 +147,15 @@ app.get('/api/review/dates', (req, res) => {
 app.get('/api/review/bydate', (req, res) => {
   const date = String(req.query.date || '');
   res.json(reviewByDate(date));
+});
+
+// 策略回测（本地历史库重放）
+app.get('/api/backtest', (req, res) => {
+  try {
+    res.json(runBacktest());
+  } catch (e) {
+    res.status(502).json({ error: e.message });
+  }
 });
 
 // 历史库状态

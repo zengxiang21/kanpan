@@ -5,6 +5,7 @@ import { fileURLToPath } from 'node:url';
 import { scanAll, reflowScan } from './scan.js';
 import { historyState } from './history.js';
 import { getQuotes } from './em.js';
+import { marketPhase } from './state.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const DIR = path.join(__dirname, '..', 'data', 'review');
@@ -152,11 +153,40 @@ export function latestSavedReview() {
   }
 }
 
-// ---------- 交易计划：关注股的竞价应对表 ----------
+// ---------- 交易计划：关注股的作战卡（最多 3 只，结合情绪周期与套利知识） ----------
 function limitRatio(code, isST) {
   if (/^(30|68)/.test(code)) return 0.2;
   if (isST) return 0.05;
   return 0.1;
+}
+
+const CHECKPOINTS = [
+  ['9:25', '竞价定参与度：高开幅度+竞价量比对照下表；量比 <3 的抢筹一律视为无效'],
+  ['9:30-9:40', '只做一件事：看能否站稳分时均价线。站不稳不动手，站上了再对照情景执行'],
+  ['10:00', '确认量能：继续放量=主力在场；缩量回落=兑现盘出，持仓减半'],
+  ['14:30', '过夜决策：强于所属板块=留；弱于板块或炸板=走，不留弱势票过夜'],
+];
+
+// 情绪周期 → 该票的建议参与模式（套利知识写进计划）
+function modeFor(stage, lianban, isTheme, strongDay) {
+  if (stage === '退潮' || stage === '冰点') {
+    return ['空仓观望', '环境差，钱再热也不出手；最多轻仓超跌反抽（1 成以内）'];
+  }
+  if (lianban && lianban >= 3) {
+    if (stage === '高潮') return ['龙头锁仓', '情绪顶点：持有为主，不新开仓；断板/大分歧日兑现一半'];
+    if (stage === '分歧') return ['龙头低吸', '分歧日只做低吸不追高：回踩分时均价/5日线缩量企稳接'];
+    return ['打板/半路', '主流龙头：打板排单或放量半路，仓位按环境档位执行'];
+  }
+  if (lianban && lianban <= 2) {
+    if (stage === '高潮') return ['谨慎接力', '高位分歧风险大：只做弱转强确认，否则观望'];
+    return ['接力/半路', '梯队中段：确认分时站上均价线后参与，不追一字'];
+  }
+  if (isTheme) {
+    if (stage === '发酵' || stage === '高潮') return ['套利板', `主线题材低位首板套利：板块有高度板压制时，半路打其首板或竞价抢筹，吃板块溢价的确定性部分`];
+    return ['主线低吸', '主线方向但情绪一般：等缩量回踩 MA5 企稳再接'];
+  }
+  if (strongDay > 0) return ['低吸回踩', '独立强势股：只做缩量回踩企稳的低吸，不追盘中急拉'];
+  return ['观望', '无涨停基因且非主线：放入观察池，出形态再谈'];
 }
 
 export async function buildPlans(codes, state) {
@@ -165,41 +195,90 @@ export async function buildPlans(codes, state) {
   const prevZtMap = new Map((state.pools.prevZt || []).map((z) => [z.code, z.lianban || 1]));
   const today = new Date().toLocaleDateString('sv-SE', { timeZone: 'Asia/Shanghai' });
 
+  // 主线题材 = 今日涨停家数前3的行业
+  const themeMap = new Map();
+  for (const z of state.pools.zt || []) {
+    if (!z.industry) continue;
+    themeMap.set(z.industry, (themeMap.get(z.industry) || 0) + 1);
+  }
+  const mainThemes = [...themeMap.entries()].sort((a, b) => b[1] - a[1]).slice(0, 3).map((x) => x[0]);
+
+  const t = state.tick || {};
+  const stage = buildReview(state, marketPhase()).emotion.cycleStage;
+  const env = t.env;
+  const posByEnv = { 重仓出击: '单票 3 成', 轻仓试错: '单票 2 成', 只看低吸: '单票 1 成', 空仓观望: '0（空仓）' };
+
   const out = [];
   for (const code of codes) {
     const q = byCode.get(code);
     const name = q?.name || code;
+    const isST = /ST/i.test(name);
     const hist0 = historyState.bars[code] || [];
     let h = hist0;
     if (h.length && h.at(-1)[0] === today) h = h.slice(0, -1);
     const closes = h.map((b) => b[2]);
     const ma5 = closes.length >= 5 ? +(closes.slice(-5).reduce((a, b) => a + b, 0) / 5).toFixed(2) : null;
     const ma10 = closes.length >= 10 ? +(closes.slice(-10).reduce((a, b) => a + b, 0) / 10).toFixed(2) : null;
+    const ma20 = closes.length >= 20 ? +(closes.slice(-20).reduce((a, b) => a + b, 0) / 20).toFixed(2) : null;
     const vols = h.map((b) => b[5]);
     const vol5 = vols.length >= 5 ? Math.round(vols.slice(-5).reduce((a, b) => a + b, 0) / 5) : null;
 
-    const lianban = prevZtMap.get(code) || null;       // 昨日连板高度（null=非昨日涨停）
-    const limitPct = limitRatio(code, /ST/i.test(name)) * 100;
-    const scenarios = [];
-    if (lianban) {
-      scenarios.push({ cond: `高开 5%~${(limitPct - 0.5).toFixed(0)}%`, action: '强一致：持有为主，竞价量比>3 可加仓；冲高不回封兑现一半' });
-      scenarios.push({ cond: '高开 2%~5%', action: '标准弱转强确认区：竞价量比>3 且金额>2000万 → 竞价/开盘参与；否则等 9:40 分时确认' });
-      scenarios.push({ cond: '高开 0~2%', action: '不及预期：开盘看 10 分钟承接，站上分时均价线再说，不急动手' });
-      scenarios.push({ cond: '低开', action: '强转弱：当日放弃接力，破 MA10 无条件走；观察 2 日内回流机会' });
-      scenarios.push({ cond: '一字板', action: '买不进不挂单；开板放量再评估（开板一字有分歧价值）' });
-    } else {
-      scenarios.push({ cond: '高开 2% 以上 + 放量', action: '突破确认：可半路参与，仓位轻于打板；跌破分时均价线止损' });
-      scenarios.push({ cond: '平开 ±1%', action: '看 9:40 前方向：放量站上分时均价线再动手，不预测' });
-      scenarios.push({ cond: '低开 2% 以内', action: '回看 MA5 附近：缩量企稳（不创分时新低）可低吸，破 MA10 放弃' });
-      scenarios.push({ cond: '低开 2% 以上', action: '弱势当日不看，除非快速翻红带量' });
+    const lianban = prevZtMap.get(code) || null; // 昨日连板高度（null=昨日非涨停）
+    const lr = limitRatio(code, isST);
+    const prevClose = q?.prevClose ?? (closes.length ? closes.at(-1) : null);
+    const limitPrice = prevClose ? +(prevClose * (1 + lr)).toFixed(2) : null;
+    const industry = (state.pools.zt || []).concat(state.pools.prevZt || []).find((z) => z.code === code)?.industry || null;
+    const isTheme = industry ? mainThemes.includes(industry) : false;
+    let strongDay = 0;
+    for (let k = Math.max(1, h.length - 10); k < h.length; k++) {
+      if (h[k - 1][2] > 0) {
+        const chg = h[k][2] / h[k - 1][2] - 1;
+        if (chg >= 0.05 || chg >= 0.093) strongDay++;
+      }
     }
-    if (ma5) scenarios.push({ cond: '关键位', action: `MA5=${ma5}${ma10 ? ' / MA10=' + ma10 : ''}：回踩不破是低吸参考，有效跌破放弃` });
+
+    const [mode, modeNote] = modeFor(stage, lianban, isTheme, strongDay);
+    const f = (x) => (x != null ? x.toFixed(2) : '-');
+
+    // 竞价情景（带具体价格带）
+    const scenarios = [];
+    const lo5 = prevClose ? +(prevClose * 1.02).toFixed(2) : null;
+    const hi5 = prevClose ? +(prevClose * 1.05).toFixed(2) : null;
+    if (lianban) {
+      scenarios.push({ cond: `一字/高开>7%（≥${prevClose ? f(prevClose * 1.07) : '-'})`, action: '买不进不挂单；开板放量（封单快速减少）再看回封，回封失败=兑现' });
+      scenarios.push({ cond: `高开 5%~7%（${prevClose ? f(prevClose * 1.05) : '-'}~${prevClose ? f(prevClose * 1.07) : '-'}）`, action: '强一致：持有为主；竞价量比>3 可持仓加码；冲高不回封兑现一半' });
+      scenarios.push({ cond: `高开 2%~5%（${lo5 ? f(lo5) : '-'}~${hi5 ? f(hi5) : '-'}）`, action: '弱转强确认区：竞价量比>3 且竞价金额>2000万 → 开盘直接参与；否则等 9:40 站上分时均价线再上' });
+      scenarios.push({ cond: `高开 0~2%（<${lo5 ? f(lo5) : '-'}）`, action: '不及预期：开盘观察 10 分钟承接，站上分时均价线不破再考虑，不急动手' });
+      scenarios.push({ cond: '低开', action: `强转弱：当日放弃接力${ma5 ? `，破 MA5(${ma5}) 无条件走` : ''}；隔日看回流页候选` });
+    } else {
+      scenarios.push({ cond: `高开 2%+（≥${prevClose ? f(prevClose * 1.02) : '-'}）+ 放量`, action: mode.includes('套利') ? '套利板执行：板块高度板仍在 → 开盘半路上，封板则拿溢价；大盘环境低于轻仓档则放弃' : '突破确认：半路参与，跌破分时均价线止损' });
+      scenarios.push({ cond: '平开 ±1%', action: '9:40 前不预测：放量上攻站上分时均价线 → 跟；回落破均价 → 删除' });
+      scenarios.push({ cond: `低开 ≤2%（${prevClose ? f(prevClose * 0.98) : '-'}附近）`, action: ma5 ? `等回踩 MA5(${ma5}) 附近缩量企稳（不创分时新低）低吸；破 MA10(${ma10 ?? '-'}) 放弃` : '等企稳信号再谈' });
+      scenarios.push({ cond: '低开 >2%', action: '弱势当日不看，除非 10 点前快速翻红带量' });
+    }
+
+    // 止损/目标/仓位
+    const stopBits = [];
+    if (lianban) stopBits.push('炸板回封失败无条件走');
+    if (ma5) stopBits.push(`破 MA5(${ma5}) 走`);
+    stopBits.push('入场价 -3% 硬止损');
+    const targetBits = [];
+    if (lianban) targetBits.push(`明日涨停价参考 ${limitPrice ?? '-'}`);
+    if (ma10) targetBits.push(`强势期沿 MA10(${ma10}) 持有`);
+    targetBits.push('冲高回落至涨幅一半 = 兑现一半');
 
     out.push({
       code, name,
       price: q?.price ?? null, pct: q?.pct ?? null,
-      lianban, ma5, ma10, vol5,
+      lianban, ma5, ma10, ma20, vol5,
       volRatio: q?.volRatio ?? null,
+      industry, isTheme, stage,
+      role: lianban ? (lianban >= 3 ? '龙头候选' : '连板接力') : isTheme ? '主线套利' : strongDay > 0 ? '强势独立' : '观察票',
+      mode, modeNote,
+      position: env ? (posByEnv[env.label] || '单票 1 成') : '单票 1 成',
+      stop: stopBits.join('；'),
+      target: targetBits.join('；'),
+      checkpoints: CHECKPOINTS,
       scenarios,
     });
   }

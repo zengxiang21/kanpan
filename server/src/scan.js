@@ -1,21 +1,23 @@
-// 形态选股扫描器：放量突破 / 缩量回踩（基于本地日线历史 + 实时全市场快照）
+// 形态选股扫描器：底部放量 / 缩量回踩（基于本地日线历史 + 实时全市场快照）
 import { historyState } from './history.js';
 
 // 可调参数（后续做成前端面板）
 export const PARAMS = {
   fangliang: {
-    volTimes: 1.8,      // 今日量 ≥ 5日均量 × 1.8
-    breakRatio: 0.995,  // 现价 ≥ 20日最高 × 0.995（突破附近/突破）
-    pctMin: 3, pctMax: 9.7, // 有涨幅但未封板，还能上车
-    capMin: 15e8, capMax: 1000e8,
+    volTimes: 2.0,      // 底部放量：今日量 ≥ 5日均量 × 2
+    pctMin: 2, pctMax: 9.5,
+    capMin: 15e8, capMax: 800e8,
+    posMax: 0.4,        // 60日区间位置分位 ≤ 40%（低位）
   },
   huita: {
-    pullPctMin: -2.5, pullPctMax: 3,   // 回踩日涨幅区间
-    maBand: 0.025,                      // 距 MA5/MA10 ±2.5% 内
-    volShrink: 0.85,                    // 缩量至 5日均量 × 0.85 以下
+    pullPctMin: -2.5, pullPctMax: 3,
+    maBand: 0.025,
+    volShrink: 0.85,
   },
   common: { minPrice: 3, excludeST: true },
 };
+
+const TOP_N = 15; // 每个形态最多输出数量
 
 function limitUpRatio(code, isST) {
   if (/^(30|68)/.test(code)) return 0.2;
@@ -63,7 +65,7 @@ export function scanAll(sweepRows) {
     downloadDone: historyState.progress.done,
     downloadTotal: historyState.progress.total,
   };
-  const out = { fangliang: [], huita: [], duotou: [], meta };
+  const out = { fangliang: [], huita: [], meta };
   if (!sweepRows || !historyState.bars || meta.historyCount < 100) return out;
 
   const C = PARAMS.common;
@@ -84,50 +86,35 @@ export function scanAll(sweepRows) {
     const volTimes = a.vol5 ? s.volume / a.vol5 : null;
     const isLimitUp = s.prevClose > 0 && s.price >= s.prevClose * (1 + limitUpRatio(s.code, s.isST)) - 0.001;
 
-    // ---- 放量突破 ----
+    // ---- 底部放量（低位首次放量启动） ----
     {
       const P = PARAMS.fangliang;
-      let ok = true;
-      if (!(volTimes != null && volTimes >= P.volTimes)) ok = false;
-      if (ok && !(a.h20 && s.price >= a.h20 * P.breakRatio)) ok = false;
+      let pos = null;
+      if (h.length >= 40) {
+        const seg = h.slice(-60);
+        const l60 = Math.min(...seg.map((b) => b[4]));
+        const h60 = Math.max(...seg.map((b) => b[3]));
+        if (h60 > l60) pos = (s.price - l60) / (h60 - l60); // 0=最低 1=最高
+      }
+      let ok = pos != null && pos <= P.posMax;
+      if (ok && !(volTimes != null && volTimes >= P.volTimes)) ok = false;
       if (ok && !(s.pct >= P.pctMin && s.pct <= P.pctMax)) ok = false;
+      if (ok && isLimitUp) ok = false;
+      if (ok && !(a.ma5 && s.price >= a.ma5 * 0.995)) ok = false; // 站上或贴近5日线
       if (ok && !(s.floatCap >= P.capMin && s.floatCap <= P.capMax)) ok = false;
       if (ok) {
-        if (volTimes >= 3) reasons.push(`放量 ${volTimes.toFixed(1)} 倍`);
-        else reasons.push(`放量 ${volTimes.toFixed(1)} 倍(≥1.8)`);
-        reasons.push(`突破20日高 ${a.h20.toFixed(2)}`);
-        if (a.ma5 > a.ma10 && a.ma10 > a.ma20) reasons.push('均线多头');
-        if (s.turnover >= 5 && s.turnover <= 20) reasons.push(`换手 ${s.turnover.toFixed(1)}%`);
+        reasons.push(`低位分位 ${(pos * 100).toFixed(0)}%`, `放量 ${volTimes.toFixed(1)} 倍`);
+        if (s.price >= a.ma5) reasons.push(`站上MA5(${a.ma5.toFixed(2)})`);
+        if (a.strongDay > 0) reasons.push('近10日有强势基因');
+        if (s.turnover >= 3 && s.turnover <= 20) reasons.push(`换手 ${s.turnover.toFixed(1)}%`);
         const score = Math.min(
           99,
           Math.round(
-            55 + Math.min(volTimes, 5) * 6 + (s.pct - P.pctMin) * 2 +
-            (s.turnover >= 5 && s.turnover <= 20 ? 8 : 0) +
-            (a.strongDay > 0 ? 5 : 0)
+            55 + Math.min(volTimes, 5) * 5 + (P.posMax - pos) * 40 +
+            (s.turnover >= 3 && s.turnover <= 20 ? 8 : 0) + (s.price >= a.ma5 ? 5 : 0)
           )
         );
         out.fangliang.push(row(s, score, volTimes, reasons));
-      }
-    }
-
-    // ---- 均线多头 ----
-    {
-      let ok = !!(a.ma5 && a.ma10 && a.ma20 && a.ma5 > a.ma10 && a.ma10 > a.ma20);
-      if (ok && !(s.price > a.ma5)) ok = false;
-      if (ok && !(s.pct >= 0.5 && s.pct <= 6)) ok = false;
-      if (ok && isLimitUp) ok = false;
-      if (ok && !(volTimes != null && volTimes >= 0.8 && volTimes <= 2.5)) ok = false;
-      if (ok) {
-        reasons.push('MA5>MA10>MA20', `站稳MA5(${a.ma5.toFixed(2)})`, `温和放量 ${volTimes.toFixed(1)}倍`);
-        const score = Math.min(
-          99,
-          Math.round(
-            60 + (a.strongDay > 0 ? 8 : 0) +
-            (s.turnover >= 3 && s.turnover <= 15 ? 8 : 0) +
-            (a.ma20 && s.price / a.ma20 < 1.15 ? 6 : 0)
-          )
-        );
-        out.duotou.push(row(s, score, volTimes, reasons));
       }
     }
 
@@ -162,10 +149,8 @@ export function scanAll(sweepRows) {
 
   out.fangliang.sort((x, y) => y.score - x.score);
   out.huita.sort((x, y) => y.score - x.score);
-  out.duotou.sort((x, y) => y.score - x.score);
-  out.fangliang = out.fangliang.slice(0, 60);
-  out.huita = out.huita.slice(0, 60);
-  out.duotou = out.duotou.slice(0, 60);
+  out.fangliang = out.fangliang.slice(0, TOP_N);
+  out.huita = out.huita.slice(0, TOP_N);
   return out;
 }
 

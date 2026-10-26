@@ -30,6 +30,7 @@ function ScanTable({ rows, onWatch, onOpenStock, emptyText }) {
 
 export default function ScanPage({ tick, onWatch, onOpenStock, section = 'scan' }) {
   const [data, setData] = useState(null);
+  const [bt, setBt] = useState(null);
   const [loading, setLoading] = useState(false);
   const [auto, setAuto] = useState(true);
 
@@ -48,6 +49,10 @@ export default function ScanPage({ tick, onWatch, onOpenStock, section = 'scan' 
     const t = setInterval(load, 60_000);
     return () => clearInterval(t);
   }, [load, auto]);
+
+  useEffect(() => {
+    fetch('/api/backtest').then((r) => r.json()).then(setBt).catch(() => {});
+  }, [data?.meta?.historyCount, data?.meta?.lastBarDate]);
 
   const meta = data?.meta;
   const historyReady = meta?.historyReady;
@@ -72,19 +77,39 @@ export default function ScanPage({ tick, onWatch, onOpenStock, section = 'scan' 
         </div>
       )}
 
+      <div className="panel" style={{ marginBottom: 12 }}>
+        <h3>策略回测（本地历史库重放 · 信号次日开盘买入）</h3>
+        {bt && (bt.difang?.count > 0 || bt.huita?.count > 0) ? (
+          <table className="tbl compact">
+            <thead><tr><th>策略</th><th>触发次数</th><th>买入日均收益</th><th>第3日</th><th>第5日</th><th>3日内最大冲高</th><th>第3日胜率</th><th>盈亏比</th></tr></thead>
+            <tbody>
+              {[bt.difang, bt.huita].filter(Boolean).map((s) => (
+                <tr key={s.name}>
+                  <td className="name">{s.name}</td>
+                  <td>{s.count}</td>
+                  <td className={s.r1 > 0 ? 'up' : 'down'}>{s.r1}%</td>
+                  <td className={s.r3 > 0 ? 'up' : 'down'}>{s.r3}%</td>
+                  <td className={s.r5 > 0 ? 'up' : 'down'}>{s.r5}%</td>
+                  <td className="up">{s.max3}%</td>
+                  <td>{s.win3 != null ? s.win3 + '%' : '-'}</td>
+                  <td>{s.pl ?? '-'}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        ) : <div className="empty">历史库下载完成后自动出回测（当前 {bt?.stockCount || 0} 只就绪）</div>}
+        <div className="hint">回测口径：信号日收盘确认 → 次日开盘买入 → 第1/3/5日收盘卖出；含手续费未计。历史代表过去，不保证未来。</div>
+      </div>
+
       {section !== 'reflow' && (
         <>
           <div className="panel" style={{ marginBottom: 12 }}>
-            <h3>放量突破 · 量比≥1.8 + 突破20日高 + 涨3%~7%未板（能上车的位置）</h3>
+            <h3>底部放量 · 60日低位40%分位 + 放量≥2倍 + 涨2%~9.5%未板（低位启动）</h3>
             <ScanTable rows={data?.fangliang || []} onWatch={onWatch} onOpenStock={onOpenStock} emptyText={historyReady ? '当前无符合条件的标的' : '等待历史库就绪'} />
           </div>
-          <div className="panel" style={{ marginBottom: 12 }}>
+          <div className="panel">
             <h3>缩量回踩 · 近10日强势 + 回踩MA5/MA10±2.5% + 缩量至5日均量85%以下</h3>
             <ScanTable rows={data?.huita || []} onWatch={onWatch} onOpenStock={onOpenStock} emptyText={historyReady ? '当前无符合条件的标的' : '等待历史库就绪'} />
-          </div>
-          <div className="panel">
-            <h3>均线多头 · MA5&gt;MA10&gt;MA20 + 站稳MA5 + 温和放量（趋势跟随）</h3>
-            <ScanTable rows={data?.duotou || []} onWatch={onWatch} onOpenStock={onOpenStock} emptyText={historyReady ? '当前无符合条件的标的' : '等待历史库就绪'} />
           </div>
         </>
       )}
