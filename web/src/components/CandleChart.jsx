@@ -14,6 +14,7 @@ export default function CandleChart({ code, name }) {
   const [data, setData] = useState(null);
   const [err, setErr] = useState(null);
   const [limit, setLimit] = useState(60);
+  const [hover, setHover] = useState(null);
 
   useEffect(() => {
     let stop = false;
@@ -53,6 +54,20 @@ export default function CandleChart({ code, name }) {
 
   const maPath = (arr, color) => arr.map((v, i) => v == null ? null : `${i === 0 || arr[i - 1] == null ? 'M' : 'L'}${x(i).toFixed(1)},${y(v).toFixed(1)}`).filter(Boolean).join(' ');
 
+  // 悬停：最近蜡烛的十字线 + 价格气泡
+  const onMove = (e) => {
+    const rect = e.currentTarget.getBoundingClientRect();
+    const mx = ((e.clientX - rect.left) / rect.width) * W;
+    const idx = Math.max(0, Math.min(n - 1, Math.floor((mx - PADL) / bw)));
+    setHover(idx);
+  };
+
+  const fmtVol = (v) => (v >= 1e6 ? (v / 1e6).toFixed(1) + '万手' : Math.round(v / 100) + '手');
+  const hb = hover != null ? bars[hover] : null;
+  const hbPct = hb && hover > 0 ? ((hb[2] / bars[hover - 1][2] - 1) * 100) : null;
+  const boxW = 168, boxH = 108;
+  const tipLeft = hover != null && x(hover) > W * 0.6;
+
   return (
     <div className="minute-wrap">
       <div className="minute-legend" style={{ paddingBottom: 6 }}>
@@ -66,7 +81,7 @@ export default function CandleChart({ code, name }) {
           <button key={L} className={`mini ${limit === L ? 'active-mini' : ''}`} onClick={() => setLimit(L)}>{L}日</button>
         ))}
       </div>
-      <svg viewBox={`0 0 ${W} ${H}`} className="minute-svg">
+      <svg viewBox={`0 0 ${W} ${H}`} className="minute-svg" onMouseMove={onMove} onMouseLeave={() => setHover(null)}>
         {[0, 0.25, 0.5, 0.75, 1].map((f, i) => {
           const v = bot + (top - bot) * (1 - f);
           const yy = PADT + f * (chartH - PADT);
@@ -77,6 +92,22 @@ export default function CandleChart({ code, name }) {
             </g>
           );
         })}
+        {/* 悬停十字线 + 价格气泡 */}
+        {hb && (
+          <g>
+            <line x1={x(hover)} x2={x(hover)} y1={PADT} y2={PADT + chartH - PADT} stroke="#8b949e" strokeOpacity="0.5" strokeDasharray="3 3" />
+            <line x1={PADL} x2={W - PADR} y1={y(hb[2])} y2={y(hb[2])} stroke="#8b949e" strokeOpacity="0.35" strokeDasharray="3 3" />
+            <circle cx={x(hover)} cy={y(hb[2])} r="2.5" fill={hb[2] >= hb[1] ? '#ff5252' : '#2ecc8f'} />
+            <g transform={`translate(${tipLeft ? x(hover) - boxW - 10 : x(hover) + 10}, ${PADT + 6})`}>
+              <rect width={boxW} height={boxH} rx="6" fill="#0d1117" stroke="#30363d" fillOpacity="0.95" />
+              <text x="10" y="18" fontSize="11" fill="#8b949e">{hb[0]}<tspan fill="#e6edf3"> {fmtVol(hb[5])}</tspan></text>
+              <text x="10" y="36" fontSize="11" fill="#8b949e">开<tspan fill="#e6edf3"> {hb[1].toFixed(2)}</tspan>　高<tspan fill="#ff5252"> {hb[3].toFixed(2)}</tspan></text>
+              <text x="10" y="54" fontSize="11" fill="#8b949e">低<tspan fill="#2ecc8f"> {hb[4].toFixed(2)}</tspan>　收<tspan fill={hb[2] >= hb[1] ? '#ff5252' : '#2ecc8f'} fontWeight="700"> {hb[2].toFixed(2)}</tspan></text>
+              <text x="10" y="72" fontSize="11" fill="#8b949e">涨跌<tspan fill={hbPct != null && hbPct > 0 ? '#ff5252' : '#2ecc8f'} fontWeight="700"> {hbPct != null ? (hbPct > 0 ? '+' : '') + hbPct.toFixed(2) + '%' : '-'}</tspan></text>
+              <text x="10" y="92" fontSize="10" fill="#8b949e">MA5 {ma5[hover] ?? '-'} · MA10 {ma10[hover] ?? '-'} · MA20 {ma20[hover] ?? '-'}</text>
+            </g>
+          </g>
+        )}
         {bars.map((b, i) => {
           const [date, o, c, h, l] = b;
           const up = c >= o;
