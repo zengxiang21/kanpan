@@ -6,6 +6,7 @@ import { state, startScheduler, marketPhase, runSweep } from './state.js';
 import { getQuotes, getNews, getGlobal, getMinute, sourceStatus } from './em.js';
 import { scanAll, reflowScan, auctionScan } from './scan.js';
 import { historyState, getKline } from './history.js';
+import { buildReview, saveReviewIfNeeded, latestSavedReview, buildPlans } from './review.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const PORT = process.env.PORT || 8000;
@@ -95,6 +96,24 @@ app.get('/api/kline', async (req, res) => {
   if (!/^\d{6}$/.test(code)) return res.status(400).json({ error: 'bad code' });
   try {
     res.json({ code, bars: await getKline(code, limit) });
+  } catch (e) {
+    res.status(502).json({ error: e.message });
+  }
+});
+
+// 收盘复盘 + 明日应对（实时生成；收盘后自动落盘 data/review/）
+app.get('/api/review', (req, res) => {
+  res.json(buildReview(state, marketPhase()));
+});
+
+// 上一份已落盘的复盘
+app.get('/api/review/saved', (req, res) => res.json(latestSavedReview()));
+
+// 交易计划：关注股的竞价应对表
+app.get('/api/plan', async (req, res) => {
+  const codes = String(req.query.codes || '').split(',').map((s) => s.trim()).filter((c) => /^\d{6}$/.test(c)).slice(0, 8);
+  try {
+    res.json(await buildPlans(codes, state));
   } catch (e) {
     res.status(502).json({ error: e.message });
   }

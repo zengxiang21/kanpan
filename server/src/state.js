@@ -383,7 +383,18 @@ export function startScheduler(broadcast) {
     } while (true);
   }
 
+  async function loopReview() {
+    await new Promise((r) => setTimeout(r, 30_000));
+    do {
+      try {
+        saveReviewIfNeeded(state, marketPhase());
+      } catch { /* 不影响行情 */ }
+      await new Promise((r) => setTimeout(r, 5 * 60_000));
+    } while (true);
+  }
+
   loopTick();
   loopPools();
   loopSweep();
+  loopReview();
 }

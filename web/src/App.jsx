@@ -13,6 +13,7 @@ import AnomalyPage from './components/AnomalyPage.jsx';
 import KnowledgePage from './components/KnowledgePage.jsx';
 import JournalPage from './components/JournalPage.jsx';
 import StockDetail from './components/StockDetail.jsx';
+import ReviewPage from './components/ReviewPage.jsx';
 
 const MENU = [
   {
@@ -37,6 +38,7 @@ const MENU = [
   {
     group: '复盘与学习',
     items: [
+      { key: 'review', label: '收盘复盘', comp: ReviewPage },
       { key: 'journal', label: '交易日志', comp: JournalPage },
       { key: 'knowledge', label: '超短知识库', comp: KnowledgePage },
     ],

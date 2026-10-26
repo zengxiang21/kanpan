@@ -39,6 +39,24 @@ const TERMS = [
   ['晋级率', '昨日 N 板今日 N+1 板的比例，情绪接力强度'],
 ];
 
+// 案例与视频资源（搜索直达链接，稳定不过期）
+const VIDEOS = [
+  ['集合竞价实战讲解', 'https://search.bilibili.com/all?keyword=%E9%9B%86%E5%90%88%E7%AB%9E%E4%BB%B7%20%E6%89%93%E6%9D%BF'],
+  ['涨停复盘实操案例', 'https://search.bilibili.com/all?keyword=%E6%B6%A8%E5%81%9C%20%E5%A4%8D%E7%9B%98%20%E5%AE%9E%E6%88%98'],
+  ['情绪周期与龙头战法', 'https://search.bilibili.com/all?keyword=%E6%83%85%E7%BB%AA%E5%91%A8%E6%9C%9F%20%E9%BE%99%E5%A4%B4%E6%88%98%E6%B3%95'],
+  ['打板低吸半路讲解', 'https://search.bilibili.com/all?keyword=%E6%89%93%E6%9D%BF%20%E4%BD%8E%E5%90%B8%20%E5%8D%8A%E8%B7%AF'],
+  ['弱转强案例拆解', 'https://search.bilibili.com/all?keyword=%E5%BC%B1%E8%BD%AC%E5%BC%BA%20%E7%AB%9E%E4%BB%B7'],
+  ['龙头断板后的二波回流', 'https://search.bilibili.com/all?keyword=%E9%BE%99%E5%A4%B4%20%E6%96%AD%E6%9D%BF%20%E4%BA%8C%E6%B3%A2'],
+];
+
+const CASE_STEPS = [
+  ['① 找到当日主线', '看复盘页"题材热度"前 3 名：涨停家数 ≥5 才算主线，1~2 家的叫杂毛不碰'],
+  ['② 锁定龙头', '主线里连板最高 / 首封最早 / 封单最大的那只；点开个股详情看日K，确认是启动初期而非高位'],
+  ['③ 定介入方式', '龙头未板→打板或半路；龙头断板→等回流页候选；不敢追龙头→选主线内 MA5 上的缩量回踩票（低吸）'],
+  ['④ 写好竞价预案', '交易计划卡里自动生成"高开/平开/低开"三情景，9:24 前决定要不要参与，开盘只执行不思考'],
+  ['⑤ 次日验证', '对照交易日志：按计划做对的记"胜"，临时起意做错的也要记，错误原因写进备注'],
+];
+
 export default function KnowledgePage() {
   return (
     <div className="page">
@@ -84,6 +102,34 @@ export default function KnowledgePage() {
               ))}
             </tbody>
           </table>
+        </div>
+      </div>
+
+      <div className="row2" style={{ marginBottom: 12 }}>
+        <div className="panel">
+          <h3>经典复盘案例拆解框架（每天照做）</h3>
+          <table className="tbl compact">
+            <tbody>
+              {CASE_STEPS.map((r) => (
+                <tr key={r[0]}><td className="name" style={{ width: 140 }}>{r[0]}</td><td>{r[1]}</td></tr>
+              ))}
+            </tbody>
+          </table>
+          <div className="hint">配合使用：收盘复盘页（自动生成）→ 交易计划卡（关注股应对表）→ 次日竞价雷达（验证）→ 交易日志（记录对错）</div>
+        </div>
+        <div className="panel">
+          <h3>视频学习资源（B站搜索直达）</h3>
+          <table className="tbl compact">
+            <tbody>
+              {VIDEOS.map((r) => (
+                <tr key={r[0]}>
+                  <td className="name">{r[0]}</td>
+                  <td><a className="news-title" href={r[1]} target="_blank" rel="noreferrer">去搜索 →</a></td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+          <div className="hint">建议只看方法论类内容；带"荐股/带单"字样的直接跳过——超短靠纪律和复盘，不靠别人报代码。</div>
         </div>
       </div>
 
