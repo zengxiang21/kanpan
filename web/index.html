@@ -7,6 +7,19 @@
   </head>
   <body>
     <div id="root"></div>
+    <script>
+      // 启动错误可视化：模块脚本静默失败时把错误直接画到页面上
+      (function () {
+        function show(msg) {
+          var d = document.createElement('pre');
+          d.style.cssText = 'position:fixed;top:0;left:0;right:0;z-index:99999;margin:0;padding:16px;background:#111;color:#f66;font-size:13px;white-space:pre-wrap';
+          d.textContent = '[启动错误] ' + msg;
+          document.body.appendChild(d);
+        }
+        window.addEventListener('error', function (e) { show((e.message || e) + '\n' + (e.filename || '') + ':' + (e.lineno || '')); });
+        window.addEventListener('unhandledrejection', function (e) { show('rej: ' + e.reason); });
+      })();
+    </script>
     <script type="module" src="/src/main.jsx"></script>
   </body>
 </html>

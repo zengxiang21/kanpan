@@ -1,5 +1,3 @@
-import { useEffect, useRef } from 'react';
-import * as echarts from 'echarts';
 import { fmtAmount, fmtPct, pctCls, fmtInt } from '../lib/format.js';
 
 const LABEL_STYLE = {
@@ -25,49 +23,14 @@ function comment(t) {
 }
 
 export default function EmotionPanel({ tick, pools }) {
-  const chartRef = useRef(null);
-  const chart = useRef(null);
-
-  useEffect(() => {
-    chart.current = echarts.init(chartRef.current);
-    const ro = new ResizeObserver(() => chart.current?.resize());
-    ro.observe(chartRef.current);
-    return () => ro.disconnect();
-  }, []);
-
-  useEffect(() => {
-    if (!chart.current) return;
-    const dist = tick?.lianbanDist || {};
-    const keys = Object.keys(dist).map(Number).sort((a, b) => a - b);
-    const x = keys.map((k) => (k >= 10 ? '10板+' : `${k === 1 ? '' : k}板`));
-    const y = keys.map((k) => dist[k]);
-    chart.current.setOption({
-      grid: { left: 40, right: 12, top: 30, bottom: 26 },
-      tooltip: { trigger: 'axis' },
-      xAxis: { type: 'category', data: x, axisLabel: { color: '#8b949e' }, axisLine: { lineStyle: { color: '#30363d' } } },
-      yAxis: { type: 'value', axisLabel: { color: '#8b949e' }, splitLine: { lineStyle: { color: '#21262d' } } },
-      series: [
-        {
-          type: 'bar',
-          data: y,
-          barWidth: '55%',
-          itemStyle: {
-            borderRadius: [3, 3, 0, 0],
-            color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [
-              { offset: 0, color: '#ff7b72' },
-              { offset: 1, color: '#b62324' },
-            ]),
-          },
-          label: { show: true, position: 'top', color: '#e6edf3' },
-        },
-      ],
-    });
-  }, [tick?.lianbanDist]);
-
   if (!tick) return <div className="empty">连接行情服务中…</div>;
   const t = tick;
   const zt = [...(pools?.zt || [])].sort((a, b) => (b.lianban || 1) - (a.lianban || 1));
   const ladder = zt.slice(0, 8);
+
+  const dist = t.lianbanDist || {};
+  const keys = Object.keys(dist).map(Number).sort((a, b) => a - b);
+  const maxV = Math.max(1, ...keys.map((k) => dist[k]));
 
   return (
     <div className="emotion">
@@ -100,7 +63,19 @@ export default function EmotionPanel({ tick, pools }) {
       <div className="row2">
         <div className="panel">
           <h3>连板分布</h3>
-          <div ref={chartRef} className="chart" />
+          <div className="bars">
+            {keys.length === 0 && <div className="empty">暂无数据</div>}
+            {keys.map((k) => (
+              <div className="bar-row" key={k}>
+                <span className="bar-label">{k >= 10 ? '10板+' : k === 1 ? '首板' : `${k}板`}</span>
+                <div className="bar-track">
+                  <div className="bar-fill" style={{ width: `${(dist[k] / maxV) * 100}%` }}>
+                    <em>{dist[k]}</em>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
         </div>
         <div className="panel">
           <h3>连板梯队（高度前8）</h3>
