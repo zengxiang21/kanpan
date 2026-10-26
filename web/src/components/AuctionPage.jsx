@@ -2,7 +2,7 @@
 import { useEffect, useState } from 'react';
 import { fmtPrice, fmtPct, pctCls, fmtCap } from '../lib/format.js';
 
-export default function AuctionPage({ onWatch }) {
+export default function AuctionPage({ onWatch, onOpenStock }) {
   const [data, setData] = useState({ rows: [], note: '' });
   const [phase, setPhase] = useState('');
 
@@ -48,7 +48,7 @@ export default function AuctionPage({ onWatch }) {
           {data.rows.map((s) => (
             <tr key={s.code}>
               <td><span className={`lb ${s.score >= 70 ? 'lb-high' : ''}`}>{s.score}</span></td>
-              <td className="name">{s.name}<small>{s.code}</small></td>
+              <td className="name"><span className="name-link" onClick={() => onOpenStock(s.code, s.name)}>{s.name}<small>{s.code}</small></span></td>
               <td className={pctCls(s.pct)}>{fmtPrice(s.price)}</td>
               <td className={`bold ${pctCls(s.pct)}`}>{fmtPct(s.pct)}</td>
               <td>{s.reasons?.find((r) => r.includes('金额'))?.replace('竞价金额 ', '') || '-'}</td>

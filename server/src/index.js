@@ -3,9 +3,9 @@ import express from 'express';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { state, startScheduler, marketPhase, runSweep } from './state.js';
-import { getQuotes, getNews, getGlobal, sourceStatus } from './em.js';
+import { getQuotes, getNews, getGlobal, getMinute, sourceStatus } from './em.js';
 import { scanAll, reflowScan, auctionScan } from './scan.js';
-import { historyState } from './history.js';
+import { historyState, getKline } from './history.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const PORT = process.env.PORT || 8000;
@@ -72,6 +72,29 @@ app.get('/api/global', async (req, res) => {
 app.get('/api/news', async (req, res) => {
   try {
     res.json(await getNews(30));
+  } catch (e) {
+    res.status(502).json({ error: e.message });
+  }
+});
+
+// 分时图（腾讯源）
+app.get('/api/minute', async (req, res) => {
+  const code = String(req.query.code || '').trim();
+  if (!/^\d{6}$/.test(code)) return res.status(400).json({ error: 'bad code' });
+  try {
+    res.json(await getMinute(code));
+  } catch (e) {
+    res.status(502).json({ error: e.message });
+  }
+});
+
+// 日K线（个股详情页）：本地历史库优先，缺了现拉腾讯
+app.get('/api/kline', async (req, res) => {
+  const code = String(req.query.code || '').trim();
+  const limit = Math.min(120, Math.max(20, parseInt(req.query.limit, 10) || 80));
+  if (!/^\d{6}$/.test(code)) return res.status(400).json({ error: 'bad code' });
+  try {
+    res.json({ code, bars: await getKline(code, limit) });
   } catch (e) {
     res.status(502).json({ error: e.message });
   }

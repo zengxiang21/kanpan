@@ -1,9 +1,11 @@
-import { useEffect, useRef, useState } from 'react';
+import { Fragment, useEffect, useRef, useState } from 'react';
 import { fmtPrice, fmtPct, pctCls, fmtAmount, fmtCap } from '../lib/format.js';
+import MinuteChart from './MinuteChart.jsx';
 
-export default function Watchlist({ watch, onRemove, onWatch }) {
+export default function Watchlist({ watch, onRemove, onWatch, onOpenStock }) {
   const [rows, setRows] = useState([]);
   const [input, setInput] = useState('');
+  const [expanded, setExpanded] = useState(null);
   const codes = watch.map((x) => x.code).join(',');
   const names = useRef(new Map(watch.map((x) => [x.code, x.name])));
 
@@ -57,18 +59,27 @@ export default function Watchlist({ watch, onRemove, onWatch }) {
             <tr><td colSpan={10} className="empty">暂无自选股，点击扫描榜/涨停池里的"+自选"，或输入代码添加</td></tr>
           )}
           {rows.map((s) => (
-            <tr key={s.code}>
-              <td className="name">{s.name}<small>{s.code}</small></td>
-              <td className={pctCls(s.pct)}>{fmtPrice(s.price)}</td>
-              <td className={`bold ${pctCls(s.pct)}`}>{fmtPct(s.pct)}</td>
-              <td>{s.volRatio ?? '-'}</td>
-              <td>{s.turnover != null ? s.turnover.toFixed(2) + '%' : '-'}</td>
-              <td>{fmtAmount(s.amount)}</td>
-              <td><span className="up">{fmtPrice(s.high)}</span> / <span className="down">{fmtPrice(s.low)}</span></td>
-              <td>{fmtCap(s.floatCap)}</td>
-              <td>{s.industry}</td>
-              <td><button className="mini danger" onClick={() => onRemove(s.code)}>移除</button></td>
-            </tr>
+            <Fragment key={s.code}>
+              <tr className="clickable" onClick={() => setExpanded(expanded === s.code ? null : s.code)} title="点击展开分时图">
+                <td className="name"><span className="name-link" onClick={(e) => { e.stopPropagation(); onOpenStock(s.code, s.name); }}>{s.name}<small>{s.code}</small></span></td>
+                <td className={pctCls(s.pct)}>{fmtPrice(s.price)}</td>
+                <td className={`bold ${pctCls(s.pct)}`}>{fmtPct(s.pct)}</td>
+                <td>{s.volRatio ?? '-'}</td>
+                <td>{s.turnover != null ? s.turnover.toFixed(2) + '%' : '-'}</td>
+                <td>{fmtAmount(s.amount)}</td>
+                <td><span className="up">{fmtPrice(s.high)}</span> / <span className="down">{fmtPrice(s.low)}</span></td>
+                <td>{fmtCap(s.floatCap)}</td>
+                <td>{s.industry}</td>
+                <td><button className="mini danger" onClick={(e) => { e.stopPropagation(); onRemove(s.code); }}>移除</button></td>
+              </tr>
+              {expanded === s.code && (
+                <tr>
+                  <td colSpan={10} style={{ padding: '8px 4px', background: '#10151c' }}>
+                    <MinuteChart code={s.code} name={s.name} />
+                  </td>
+                </tr>
+              )}
+            </Fragment>
           ))}
         </tbody>
       </table>

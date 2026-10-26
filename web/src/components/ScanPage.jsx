@@ -2,7 +2,7 @@
 import { useEffect, useState, useCallback } from 'react';
 import { fmtPrice, fmtPct, pctCls, fmtCap } from '../lib/format.js';
 
-function ScanTable({ rows, onWatch, emptyText }) {
+function ScanTable({ rows, onWatch, onOpenStock, emptyText }) {
   return (
     <table className="tbl">
       <thead>
@@ -13,7 +13,7 @@ function ScanTable({ rows, onWatch, emptyText }) {
         {rows.map((s) => (
           <tr key={s.code}>
             <td><span className={`lb ${s.score >= 75 ? 'lb-high' : ''}`}>{s.score}</span></td>
-            <td className="name">{s.name}<small>{s.code}</small></td>
+            <td className="name"><span className="name-link" onClick={() => onOpenStock(s.code, s.name)}>{s.name}<small>{s.code}</small></span></td>
             <td className={pctCls(s.pct)}>{fmtPrice(s.price)}</td>
             <td className={`bold ${pctCls(s.pct)}`}>{fmtPct(s.pct)}</td>
             <td>{s.volTimes != null ? s.volTimes + '×' : '-'}</td>
@@ -28,7 +28,7 @@ function ScanTable({ rows, onWatch, emptyText }) {
   );
 }
 
-export default function ScanPage({ tick, onWatch, section = 'scan' }) {
+export default function ScanPage({ tick, onWatch, onOpenStock, section = 'scan' }) {
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(false);
   const [auto, setAuto] = useState(true);
@@ -76,11 +76,11 @@ export default function ScanPage({ tick, onWatch, section = 'scan' }) {
         <>
           <div className="panel" style={{ marginBottom: 12 }}>
             <h3>放量突破 · 量比≥1.8 + 突破20日高 + 涨3%~7%未板（能上车的位置）</h3>
-            <ScanTable rows={data?.fangliang || []} onWatch={onWatch} emptyText={historyReady ? '当前无符合条件的标的' : '等待历史库就绪'} />
+            <ScanTable rows={data?.fangliang || []} onWatch={onWatch} onOpenStock={onOpenStock} emptyText={historyReady ? '当前无符合条件的标的' : '等待历史库就绪'} />
           </div>
           <div className="panel">
             <h3>缩量回踩 · 近10日强势 + 回踩MA5/MA10±2.5% + 缩量至5日均量85%以下</h3>
-            <ScanTable rows={data?.huita || []} onWatch={onWatch} emptyText={historyReady ? '当前无符合条件的标的' : '等待历史库就绪'} />
+            <ScanTable rows={data?.huita || []} onWatch={onWatch} onOpenStock={onOpenStock} emptyText={historyReady ? '当前无符合条件的标的' : '等待历史库就绪'} />
           </div>
         </>
       )}
@@ -99,7 +99,7 @@ export default function ScanPage({ tick, onWatch, section = 'scan' }) {
               {(data?.reflow || []).map((s) => (
                 <tr key={s.code}>
                   <td><span className={`lb ${s.score >= 75 ? 'lb-high' : ''}`}>{s.score}</span></td>
-                  <td className="name">{s.name}<small>{s.code}</small></td>
+                  <td className="name"><span className="name-link" onClick={() => onOpenStock(s.code, s.name)}>{s.name}<small>{s.code}</small></span></td>
                   <td className={pctCls(s.pct)}>{fmtPrice(s.price)}</td>
                   <td className={`bold ${pctCls(s.pct)}`}>{fmtPct(s.pct)}</td>
                   <td>第 {s.gapDays} 天</td>

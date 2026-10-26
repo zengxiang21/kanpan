@@ -213,6 +213,22 @@ body {
 
 .empty { color: var(--muted); padding: 26px; text-align: center; }
 
+/* ================= 分时图 ================= */
+.minute-wrap { background: #10151c; border: 1px solid var(--border); border-radius: 8px; padding: 8px; }
+.minute-svg { width: 100%; display: block; }
+.minute-legend { display: flex; gap: 14px; flex-wrap: wrap; font-size: 12px; padding: 4px 4px 0; }
+
+/* ================= 数值变动闪色 ================= */
+@keyframes flashUpKf { 0% { background-color: rgba(255, 82, 82, 0.35); } 100% { background-color: transparent; } }
+@keyframes flashDownKf { 0% { background-color: rgba(46, 204, 143, 0.3); } 100% { background-color: transparent; } }
+.flash-up { animation: flashUpKf 1.2s ease-out; }
+.flash-down { animation: flashDownKf 1.2s ease-out; }
+tr.clickable { cursor: pointer; }
+.name-link { cursor: pointer; }
+.name-link:hover { color: var(--accent); text-decoration: underline; }
+.small-v { font-size: 16px; }
+.stock-head { display: flex; align-items: center; gap: 12px; margin-bottom: 12px; }
+
 @media (max-width: 1100px) {
   .index-strip { grid-template-columns: repeat(2, 1fr); }
   .row2, .ranks { grid-template-columns: 1fr; }

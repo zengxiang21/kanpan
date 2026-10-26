@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react';
 import { fmtPrice, fmtPct, pctCls, fmtAmount, fmtCap } from '../lib/format.js';
 
-function PoolTable({ rows, onWatch, watchCodes }) {
+function PoolTable({ rows, onWatch, watchCodes, onOpenStock }) {
   const sorted = useMemo(
     () => [...rows].sort((a, b) => (b.lianban || 1) - (a.lianban || 1) || String(a.firstSeal).localeCompare(String(b.firstSeal))),
     [rows]
@@ -18,7 +18,7 @@ function PoolTable({ rows, onWatch, watchCodes }) {
         {sorted.map((s) => (
           <tr key={s.code}>
             <td><span className={`lb ${s.lianban >= 3 ? 'lb-high' : ''}`}>{s.lianban || 1}板</span></td>
-            <td className="name">{s.name}<small>{s.code}</small></td>
+            <td className="name"><span className="name-link" onClick={() => onOpenStock(s.code, s.name)}>{s.name}<small>{s.code}</small></span></td>
             <td className={pctCls(s.pct)}>{fmtPrice(s.price)}</td>
             <td className={pctCls(s.pct)}>{fmtPct(s.pct)}</td>
             <td>{fmtAmount(s.sealFund)}</td>
@@ -40,7 +40,7 @@ function PoolTable({ rows, onWatch, watchCodes }) {
   );
 }
 
-export default function ZtPool({ tick, pools, onWatch }) {
+export default function ZtPool({ tick, pools, onWatch, onOpenStock }) {
   const [q, setQ] = useState('');
   const [view, setView] = useState('ladder');
   const watchCodes = useMemo(() => new Set(), []);
@@ -84,7 +84,7 @@ export default function ZtPool({ tick, pools, onWatch }) {
               </div>
               <div className="tianti-stocks">
                 {stocks.map((s) => (
-                  <button className="stock-chip" key={s.code} title={`${s.industry || ''} · 首封 ${s.firstSeal || '-'} · 炸板${s.zhaCount}次`} onClick={() => onWatch(s.code, s.name)}>
+                  <button className="stock-chip" key={s.code} title={`${s.industry || ''} · 首封 ${s.firstSeal || '-'} · 炸板${s.zhaCount}次 · 点击看详情`} onClick={() => onOpenStock(s.code, s.name)}>
                     <b>{s.name}</b>
                     <span className={pctCls(s.pct)}>{fmtPct(s.pct)}</span>
                     <small>{s.firstSeal || '-'}</small>
@@ -97,7 +97,7 @@ export default function ZtPool({ tick, pools, onWatch }) {
         </div>
       )}
 
-      {view === 'table' && <PoolTable rows={zt} onWatch={onWatch} watchCodes={watchCodes} />}
+      {view === 'table' && <PoolTable rows={zt} onWatch={onWatch} watchCodes={watchCodes} onOpenStock={onOpenStock} />}
 
       <details>
         <summary>炸板池（{pools?.zb?.length || 0}）</summary>

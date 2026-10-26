@@ -12,6 +12,7 @@ import ScanPage from './components/ScanPage.jsx';
 import AnomalyPage from './components/AnomalyPage.jsx';
 import KnowledgePage from './components/KnowledgePage.jsx';
 import JournalPage from './components/JournalPage.jsx';
+import StockDetail from './components/StockDetail.jsx';
 
 const MENU = [
   {
@@ -49,6 +50,8 @@ export default function App() {
   const [tradingDay, setTradingDay] = useState(null);
   const [live, setLive] = useState(false);
   const [tab, setTab] = useState('premarket');
+  const [stock, setStock] = useState(null);
+  const openStock = (code, name) => setStock({ code, name: name || code });
   const [collapsed, setCollapsed] = useState(false);
   const [watch, setWatch] = useState(() => {
     try {
@@ -126,7 +129,7 @@ export default function App() {
                     key={it.key}
                     className={`menu-item ${tab === it.key ? 'active' : ''}`}
                     title={it.label}
-                    onClick={() => setTab(it.key)}
+                    onClick={() => { setTab(it.key); setStock(null); }}
                   >
                     <span className="menu-label">{it.label}</span>
                     {badge != null && !collapsed && <em>{badge}</em>}
@@ -151,8 +154,14 @@ export default function App() {
       </aside>
 
       <main className="content">
-        {showStrip && <IndexStrip tick={tick} />}
-        {ActiveComp && <ActiveComp tick={tick} pools={pools} onWatch={addWatch} watch={watch} onRemove={removeWatch} />}
+        {stock ? (
+          <StockDetail code={stock.code} name={stock.name} onBack={() => setStock(null)} onWatch={addWatch} />
+        ) : (
+          <>
+            {showStrip && <IndexStrip tick={tick} />}
+            {ActiveComp && <ActiveComp tick={tick} pools={pools} onWatch={addWatch} watch={watch} onRemove={removeWatch} onOpenStock={openStock} />}
+          </>
+        )}
       </main>
     </div>
   );

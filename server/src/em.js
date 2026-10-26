@@ -291,6 +291,39 @@ export async function getPool(kind, date) {
   return (d?.data?.pool || []).map(mapPool);
 }
 
+// ================= 分时（腾讯 ifzq；累计量差分 + 均价线） =================
+function txCode(code) {
+  return (/^(6|9)/.test(code) ? 'sh' : 'sz') + code;
+}
+
+export async function getMinute(code) {
+  const c = txCode(code);
+  const d = JSON.parse(await fetchGBK(`https://web.ifzq.gtimg.cn/appstock/app/minute/query?code=${c}`, {}, 9000));
+  const node = d?.data?.[c];
+  const rows = node?.data?.data || [];
+  if (!rows.length) throw new Error('空分时');
+  const prevClose = parseFloat(node?.qt?.[c]?.[4]) || null;
+  let cumVol = 0, cumAmt = 0;
+  const points = rows.map((r) => {
+    const f = String(r).split(/\s+/);
+    const t = f[0], price = parseFloat(f[1]);
+    const vol = Math.max(0, Math.round(parseFloat(f[2]))); // 累计(手) → 差分
+    const amount = parseFloat(f[3]) || 0;
+    const dVol = vol - cumVol;
+    cumVol = vol;
+    cumAmt += (price * dVol * 100);
+    const avg = cumVol > 0 ? +(cumAmt / (cumVol * 100)).toFixed(2) : price;
+    return { t, price, vol: dVol, avg };
+  });
+  return {
+    code: String(code),
+    date: node?.data?.date || null,
+    prevClose,
+    points,
+    name: node?.qt?.[c]?.[1] || null,
+  };
+}
+
 // ================= 隔夜外围（新浪 int_ 全球指数 + A50 期货） =================
 const GLOBAL_LIST = 'int_dji,int_nasdaq,int_sp500,int_hangseng,int_nikkei,hf_CHA50CFD';
 

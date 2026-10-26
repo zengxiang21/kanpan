@@ -4,7 +4,7 @@ import { fmtPrice, fmtPct, pctCls } from '../lib/format.js';
 
 const DELTA = 1.5; // 相邻两帧涨跌幅变化阈值（3秒内）
 
-export default function AnomalyPage({ tick, watch }) {
+export default function AnomalyPage({ tick, watch, onOpenStock }) {
   const prevRef = useRef(null);   // code -> pct
   const [events, setEvents] = useState([]);
 
@@ -86,7 +86,7 @@ export default function AnomalyPage({ tick, watch }) {
             <tr key={e.id} className={e.type === '急拉' ? 'row-up' : 'row-down'}>
               <td className="muted">{new Date(e.time).toLocaleTimeString('zh-CN', { hour12: false })}</td>
               <td><span className={`lb ${e.type === '急拉' ? 'lb-high' : 'lb-green'}`}>{e.type}{e.watch ? '·自选' : ''}</span></td>
-              <td className="name">{e.name}<small>{e.code}</small></td>
+              <td className="name"><span className="name-link" onClick={() => onOpenStock(e.code, e.name)}>{e.name}<small>{e.code}</small></span></td>
               <td>{fmtPrice(e.price)}</td>
               <td className={pctCls(e.delta)}>{e.from.toFixed(1)}% → {e.to.toFixed(1)}%</td>
               <td className={`bold ${pctCls(e.to)}`}>{fmtPct(e.to)}</td>

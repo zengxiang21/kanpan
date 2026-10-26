@@ -39,6 +39,45 @@ function txCode(code) {
   return (/^(6|9)/.test(code) ? 'sh' : 'sz') + code;
 }
 
+async function fetchKlineTencent2(code, bars) {
+  const c = txCode(code);
+  const url = `https://web.ifzq.gtimg.cn/appstock/app/fqkline/get?param=${c},day,,,${bars},qfq`;
+  const d = JSON.parse(await fetchGBK(url, {}, 9000));
+  const node = d?.data?.[c];
+  const raw = node?.qfqday || node?.day;
+  if (!Array.isArray(raw) || !raw.length) throw new Error('空K线');
+  return raw.map((b) => [b[0], +b[1], +b[2], +b[3], +b[4], Math.round(+b[5] * 100)]);
+}
+
+async function fetchKlineSina2(code, bars) {
+  const c = txCode(code);
+  const d = JSON.parse(await fetchGBK(`https://quotes.sina.cn/cn/api/json_v2.php/CN_MarketDataService.getKLineData?symbol=${c}&scale=240&ma=no&datalen=${bars}`, { Referer: 'https://finance.sina.com.cn/' }, 9000));
+  if (!Array.isArray(d) || !d.length) throw new Error('空K线');
+  return d.map((b) => [b.day, +b.open, +b.close, +b.high, +b.low, +b.volume]);
+}
+
+// 腾讯熔断：连续失败即切新浪（反爬触发时避免逐只等待超时）
+const breaker = { txFails: 0, txDownUntil: 0 };
+
+// 按需取单只日K（个股详情页用）：本地历史库优先 → 腾讯 → 新浪
+export async function getKline(code, bars = 80) {
+  const mine = historyState.bars[code];
+  if (mine && mine.length >= Math.min(30, bars)) return mine.slice(-bars);
+  if (Date.now() < breaker.txDownUntil) return fetchKlineSina2(code, bars);
+  try {
+    const r = await fetchKlineTencent2(code, bars);
+    breaker.txFails = 0;
+    return r;
+  } catch (e) {
+    breaker.txFails++;
+    if (breaker.txFails >= 3) {
+      breaker.txDownUntil = Date.now() + 30 * 60_000;
+      console.warn('[history] 腾讯K线熔断 30 分钟 → 切新浪:', e.message);
+    }
+    return fetchKlineSina2(code, bars);
+  }
+}
+
 async function fetchKlineTencent(code) {
   const c = txCode(code);
   const url = `https://web.ifzq.gtimg.cn/appstock/app/fqkline/get?param=${c},day,,,${BARS},qfq`;
@@ -69,6 +108,7 @@ async function downloadBatch(codes, lastDate, delayMs) {
       }
     }
     try {
+      if (Date.now() < breaker.txDownUntil) throw new Error('tx熔断中');
       historyState.bars[code] = await fetchKlineTencent(code);
       ok++;
     } catch {
