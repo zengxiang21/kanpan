@@ -4,13 +4,13 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>短线看盘</title>
-    <script type="module" crossorigin src="/assets/index-CIGOJ5Wq.js"></script>
-    <link rel="stylesheet" crossorigin href="/assets/index-BlrWxArE.css">
+    <script type="module" crossorigin src="/assets/index-BotUTtpb.js"></script>
+    <link rel="stylesheet" crossorigin href="/assets/index-CUBzC3pe.css">
   </head>
   <body>
     <div id="root"></div>
     <script>
-      // 启动错误可视化：模块脚本静默失败时把错误直接画到页面上
+      // 启动错误可视化：只显示本站脚本的错误，忽略浏览器扩展（MetaMask 等）注入的噪音
       (function () {
         function show(msg) {
           var d = document.createElement('pre');
@@ -18,8 +18,19 @@
           d.textContent = '[启动错误] ' + msg;
           document.body.appendChild(d);
         }
-        window.addEventListener('error', function (e) { show((e.message || e) + '\n' + (e.filename || '') + ':' + (e.lineno || '')); });
-        window.addEventListener('unhandledrejection', function (e) { show('rej: ' + e.reason); });
+        window.addEventListener('error', function (e) {
+          var fn = e.filename || '';
+          if (fn.indexOf('chrome-extension') === 0 || fn.indexOf('moz-extension') === 0) return;
+          var msg = e.message || String(e);
+          if (/MetaMask|metamask|web3|ethereum/i.test(msg)) return;
+          show(msg + '\n' + fn + ':' + (e.lineno || ''));
+        });
+        window.addEventListener('unhandledrejection', function (e) {
+          var r = e.reason;
+          var txt = r && r.stack ? r.stack : String(r);
+          if (/MetaMask|metamask|chrome-extension|web3|ethereum/i.test(txt)) return;
+          show('rej: ' + (r && r.message ? r.message : String(r)));
+        });
       })();
     </script>
   </body>
