@@ -324,11 +324,25 @@ export async function getMinute(code) {
   };
 }
 
-// ================= 隔夜外围（新浪 int_ 全球指数 + A50 期货） =================
-const GLOBAL_LIST = 'int_dji,int_nasdaq,int_sp500,int_hangseng,int_nikkei,hf_CHA50CFD';
+// ================= 隔夜外围（美股三指数走腾讯实时；恒指/日经走新浪；A50 期货） =================
+async function tencentGlobal() {
+  const txt = await fetchGBK('https://qt.gtimg.cn/q=usIXIC,usDJI,usINX', {}, 8000);
+  const nameMap = { IXIC: '纳斯达克', DJI: '道琼斯', INX: '标普500' };
+  const out = [];
+  for (const m of txt.matchAll(/v_us(\w+)="([^"]*)"/g)) {
+    const f = m[2].split('~');
+    if (f.length < 33 || !f[3]) continue;
+    const price = parseFloat(f[3]);
+    out.push({
+      key: m[1].toLowerCase(), name: nameMap[m[1]] || f[1], price,
+      change: parseFloat(f[31]), pct: parseFloat(f[32]), time: f[30] || null,
+    });
+  }
+  return out;
+}
 
-export async function getGlobal() {
-  const txt = await fetchGBK(`https://hq.sinajs.cn/list=${GLOBAL_LIST}`, HEADERS_SINA);
+async function sinaGlobal() {
+  const txt = await fetchGBK(`https://hq.sinajs.cn/list=int_hangseng,int_nikkei,hf_CHA50CFD`, HEADERS_SINA);
   const out = [];
   for (const m of txt.matchAll(/hq_str_(\w+)="([^"]*)"/g)) {
     const f = m[2].split(',');
@@ -347,6 +361,17 @@ export async function getGlobal() {
     }
   }
   return out;
+}
+
+const GLOBAL_ORDER = { nasdaq: 0, dji: 1, sp500: 2, a50: 3, int_hangseng: 4, int_nikkei: 5 };
+
+export async function getGlobal() {
+  const [tx, sn] = await Promise.all([
+    tencentGlobal().catch(() => []),
+    sinaGlobal().catch(() => []),
+  ]);
+  const all = [...tx, ...sn.filter((x) => x.key !== 'int_sp500' && !tx.some((t) => t.name === x.name))];
+  return all.sort((a, b) => (GLOBAL_ORDER[a.key] ?? 99) - (GLOBAL_ORDER[b.key] ?? 99));
 }
 
 // ================= 7×24 快讯（新浪滚动财经） =================
