@@ -30,14 +30,16 @@ async function main() {
   if (prev === next) { console.log('[push-cloud] 无变化'); return; }
   fs.writeFileSync(outFile, next);
 
-  // 凭证（gh keyring 里的 token）
+  // 凭证（gh keyring 里的 token；凭证文件放系统临时目录，绝不进仓库）
+  const os = await import('node:os');
+  const credFile = path.join(os.tmpdir(), 'kanpan-gitcred');
   const token = execFileSync(GH, ['auth', 'token'], { encoding: 'utf8' }).trim();
-  fs.writeFileSync(path.join(require('node:os').tmpdir(), 'kanpan-gitcred'), `https://zengxiang21:${token}@github.com`);
+  fs.writeFileSync(credFile, `https://zengxiang21:${token}@github.com`);
   const g = (args) => execFileSync(GIT, args, { cwd: ROOT, encoding: 'utf8' });
   g(['add', 'docs/cloud/data.json']);
   g(['-c', 'user.name=kanpan', '-c', 'user.email=kanpan@local', 'commit', '-m', `cloud data ${new Date().toLocaleString('zh-CN', { timeZone: 'Asia/Shanghai', hour12: false })}`]);
-  g(['-c', 'http.proxy=http://127.0.0.1:7897', '-c', 'credential.helper=', '-c', 'credential.helper=store --file=C:\Users\Administrator\AppData\Local\Temp/kanpan-gitcred', 'push']);
-  fs.rmSync(path.join(require('node:os').tmpdir(), 'kanpan-gitcred'), { force: true });
+  g(['-c', 'http.proxy=http://127.0.0.1:7897', '-c', 'credential.helper=', '-c', `credential.helper=store --file=${credFile.replace(/\\/g, '/')}`, 'push']);
+  fs.rmSync(credFile, { force: true });
   console.log('[push-cloud] 已推送云端快照', new Date().toLocaleTimeString('zh-CN', { hour12: false }));
 }
 
