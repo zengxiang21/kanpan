@@ -4,6 +4,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { getIndices, getRank, getPool, sinaFullSweep, sourceStatus } from './em.js';
 import { ensureHistoryStarted } from './history.js';
+import { loadIndustryMap, ensureIndustryMapStarted } from './industries.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const DATA_DIR = path.join(__dirname, '..', 'data');
@@ -373,6 +374,7 @@ function phaseIntervals() {
 
 export function startScheduler(broadcast) {
   loadDaily();
+  loadIndustryMap();
   let poolsLoaded = false;
   let historyKicked = false;
 
@@ -405,6 +407,7 @@ export function startScheduler(broadcast) {
       if (!historyKicked && state.marketSweep) {
         historyKicked = true;
         ensureHistoryStarted(() => (state.marketSweep ? state.marketSweep.rows.map((r) => r.code) : null));
+        ensureIndustryMapStarted();
       }
       await new Promise((r) => setTimeout(r, phaseIntervals().sweep));
     } while (true);

@@ -56,9 +56,10 @@ app.get('/api/scan', (req, res) => {
   });
 });
 
-// 竞价雷达（9:15-9:25 最有效）
+// 竞价雷达（9:15-9:25 真实竞价；其余时段为昨日快照预演）
 app.get('/api/auction', (req, res) => {
-  res.json({ ...auctionScan(state.marketSweep, state.pools), phase: marketPhase() });
+  const phase = marketPhase();
+  res.json({ ...auctionScan(state.marketSweep, state.pools, phase), phase });
 });
 
 // 隔夜外围

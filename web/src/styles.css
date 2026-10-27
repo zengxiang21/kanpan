@@ -274,6 +274,8 @@ tr.clickable { cursor: pointer; }
 .fill-flat { background: #3d444d !important; }
 .prem-detail { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
 .prem-row { display: flex; align-items: center; gap: 8px; padding: 3px 0; font-size: 13px; border-bottom: 1px dashed #21262d; }
+.dir-tag { font-size: 11px; color: var(--muted); background: var(--panel2); border-radius: 4px; padding: 1px 6px; }
+.dir-top { border-color: var(--accent) !important; }
 
 @media (max-width: 1100px) {
   .index-strip { grid-template-columns: repeat(2, 1fr); }
