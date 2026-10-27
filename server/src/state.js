@@ -5,7 +5,12 @@ import { fileURLToPath } from 'node:url';
 import { getIndices, getRank, getPool, sinaFullSweep, sourceStatus } from './em.js';
 import { ensureHistoryStarted } from './history.js';
 import { loadIndustryMap, ensureIndustryMapStarted } from './industries.js';
-import { updateAuctionCloses } from './auctionstore.js';
+import { updateAuctionCloses, saveAuctionSnapshot, getAuctionByDate } from './auctionstore.js';
+import { auctionScan } from './scan.js';
+
+function auctionSavedToday(day) {
+  return !!getAuctionByDate(day);
+}
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const DATA_DIR = path.join(__dirname, '..', 'data');
@@ -419,6 +424,15 @@ export function startScheduler(broadcast) {
     do {
       try {
         saveReviewIfNeeded(state, marketPhase());
+        // 9:25-9:30 竞价定稿：无论页面是否打开，自动落盘当日竞价雷达
+        const ph = marketPhase();
+        if (ph === 'auction_end' && state.tradingDay && !auctionSavedToday(state.tradingDay) && state.marketSweep) {
+          const a = auctionScan(state.marketSweep, state.pools, ph, { lhbCodes: new Set() });
+          saveAuctionSnapshot(state.tradingDay, {
+            date: state.tradingDay, savedAt: Date.now(), mode: a.mode,
+            rows: a.rows.map((r) => ({ ...r })), directions: a.directions,
+          });
+        }
         // 收盘后回填竞价快照的收盘涨幅
         const { minutes: rm, dow: rd } = shParts();
         if (isTradingDow(rd) && rm >= 905 && state.marketSweep && state.tradingDay) {
