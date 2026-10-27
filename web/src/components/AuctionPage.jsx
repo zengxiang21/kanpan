@@ -29,7 +29,7 @@ export default function AuctionPage({ onWatch, onOpenStock }) {
 
   const inAuction = data.mode === 'auction';
   const amtLabel = inAuction ? '竞价金额' : '昨日成交额';
-  const gapLabel = inAuction ? '竞价涨幅' : '昨日涨幅(模拟)';
+  const gapLabel = inAuction ? '竞价涨幅' : '昨日涨幅(预演)';
 
   // 方向钻取：选中方向后按"短线龙头强度"排序（连板高 → 首封早 → 封单大）
   let rows = data.rows || [];
@@ -92,12 +92,15 @@ export default function AuctionPage({ onWatch, onOpenStock }) {
         <thead>
           <tr>
             <th>评分</th><th>名称</th><th>方向</th><th>连板</th><th>首封/封单</th>
-            <th>{gapLabel}</th><th>收盘涨幅</th><th>结果</th><th>流通市值</th><th>命中点</th><th></th>
+            <th>{gapLabel}</th>
+            {showClose && <th>收盘涨幅</th>}
+            {showClose && <th>结果</th>}
+            <th>流通市值</th><th>命中点</th><th></th>
           </tr>
         </thead>
         <tbody>
           {rows.length === 0 && (
-            <tr><td colSpan={11} className="empty">
+            <tr><td colSpan={showClose ? 11 : 9} className="empty">
               {selDir ? `方向【${selDir}】暂无候选` : '暂无候选 —— 竞价时段实时刷新；预演模式显示昨日强势票'}
             </td></tr>
           )}
@@ -112,14 +115,18 @@ export default function AuctionPage({ onWatch, onOpenStock }) {
               <td>{s.lianban ? `${s.lianban}板` : '-'}</td>
               <td>{s.firstSeal ? `${s.firstSeal.slice(0, 5)}/${fmtAmount(s.sealFund)}` : '-'}</td>
               <td className={`bold ${pctCls(s.gap)}`}>{fmtPct(s.gap)}</td>
-              <td className={s.closePct != null ? pctCls(s.closePct) : 'muted'}>
-                {s.closePct != null ? fmtPct(s.closePct) : !viewDate && data.mode !== 'preview' ? fmtPct(s.pct) + '*' : '-'}
-              </td>
-              <td>
-                {s.correct != null ? (
-                  <span className={`lb ${s.correct > 0 ? 'lb-high' : 'lb-green'}`}>{s.correct > 0 ? `✓ +${s.correct}%` : `✗ ${s.correct}%`}</span>
-                ) : s.closePct != null ? <span className="muted">平</span> : '-'}
-              </td>
+              {showClose && (
+                <td className={s.closePct != null ? pctCls(s.closePct) : 'muted'}>
+                  {s.closePct != null ? fmtPct(s.closePct) : !viewDate ? fmtPct(s.pct) + '*' : '-'}
+                </td>
+              )}
+              {showClose && (
+                <td>
+                  {s.correct != null ? (
+                    <span className={`lb ${s.correct > 0 ? 'lb-high' : 'lb-green'}`}>{s.correct > 0 ? `✓ +${s.correct}%` : `✗ ${s.correct}%`}</span>
+                  ) : s.closePct != null ? <span className="muted">平</span> : '-'}
+                </td>
+              )}
               <td>{fmtCap(s.floatCap)}</td>
               <td className="muted reasons-cell">{(s.reasons || []).join(' · ')}</td>
               <td><button className="mini" onClick={() => onWatch(s.code, s.name)}>+自选</button></td>
@@ -128,8 +135,9 @@ export default function AuctionPage({ onWatch, onOpenStock }) {
         </tbody>
       </table>
       <div className="hint" style={{ marginTop: 8 }}>
-        复盘口径：结果 = 收盘涨幅 − 竞价涨幅，&gt;0 代表"9:25 按信号竞价买入"当日浮盈 ✓。带 * 为盘中实时涨幅（收盘后自动回填）。
-        每日 9:25-9:30 打开本页即可定稿当日竞价存档。
+        {showClose
+          ? '复盘口径：结果 = 收盘涨幅 − 竞价涨幅，>0 代表"9:25 按信号竞价买入"当日浮盈 ✓。带 * 为盘中实时涨幅（收盘后自动回填定稿）。'
+          : '预演模式说明：9:15 前不存在"竞价涨幅"，此列为昨日涨幅仅供预演；9:25 定稿后本页自动出现"竞价涨幅 vs 收盘涨幅"的复盘两列。'}
       </div>
     </div>
   );
