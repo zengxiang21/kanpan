@@ -17,7 +17,8 @@ export const PARAMS = {
   common: { minPrice: 3, excludeST: true },
 };
 
-const TOP_N = 15; // 每个形态最多输出数量
+const TOP_N = 8;        // 每个形态最多输出数量（宁缺毋滥）
+const MIN_SCORE = 70;   // 低于该评分的直接过滤
 
 function limitUpRatio(code, isST) {
   if (/^(30|68)/.test(code)) return 0.2;
@@ -107,14 +108,17 @@ export function scanAll(sweepRows) {
         if (s.price >= a.ma5) reasons.push(`站上MA5(${a.ma5.toFixed(2)})`);
         if (a.strongDay > 0) reasons.push('近10日有强势基因');
         if (s.turnover >= 3 && s.turnover <= 20) reasons.push(`换手 ${s.turnover.toFixed(1)}%`);
-        const score = Math.min(
-          99,
-          Math.round(
-            55 + Math.min(volTimes, 5) * 5 + (P.posMax - pos) * 40 +
-            (s.turnover >= 3 && s.turnover <= 20 ? 8 : 0) + (s.price >= a.ma5 ? 5 : 0)
-          )
-        );
-        out.fangliang.push(row(s, score, volTimes, reasons));
+        const bPos = Math.round((P.posMax - pos) * 90);      // 越低分越高，满分约36
+        const bVol = Math.round(Math.min(volTimes, 4) / 4 * 30); // 满分30
+        const bTurn = s.turnover >= 3 && s.turnover <= 20 ? 8 : 0;
+        const bMa = s.price >= a.ma5 ? 6 : 0;
+        const bStrong = a.strongDay > 0 ? 5 : 0;
+        const breakdown = [
+          { k: '低位分位', v: bPos }, { k: '量能倍数', v: bVol },
+          { k: '换手甜区', v: bTurn }, { k: '站上MA5', v: bMa }, { k: '强势基因', v: bStrong },
+        ];
+        const score = Math.min(99, 45 + bPos + bVol + bTurn + bMa + bStrong);
+        out.fangliang.push(row(s, score, volTimes, reasons, breakdown));
       }
     }
 
@@ -135,31 +139,32 @@ export function scanAll(sweepRows) {
         reasons.push(`近10日强势 ${a.strongDay} 天`);
         reasons.push(`回踩 ${a.ma5 ? 'MA5(' + a.ma5.toFixed(2) + ')' : ''}`);
         reasons.push(`缩量至 ${(volTimes * 100).toFixed(0)}%`);
-        const score = Math.min(
-          99,
-          Math.round(
-            55 + a.strongDay * 10 + (a.ma5 >= a.ma10 && a.ma10 > a.ma20 ? 8 : 0) +
-            (volTimes <= 0.6 ? 8 : 4) + (s.pct >= 0 && s.pct <= 2 ? 5 : 0)
-          )
-        );
-        out.huita.push(row(s, score, volTimes, reasons));
+        const bStrong = Math.min(a.strongDay, 3) * 10;
+        const bMa = a.ma5 >= a.ma10 && a.ma10 > a.ma20 ? 14 : 6;
+        const bVol = volTimes <= 0.6 ? 14 : 8;
+        const bPct = s.pct >= 0 && s.pct <= 2 ? 8 : 4;
+        const breakdown = [
+          { k: '强势天数', v: bStrong }, { k: '多头排列', v: bMa },
+          { k: '极度缩量', v: bVol }, { k: '回踩幅度', v: bPct },
+        ];
+        const score = Math.min(99, 45 + bStrong + bMa + bVol + bPct);
+        out.huita.push(row(s, score, volTimes, reasons, breakdown));
       }
     }
   }
 
-  out.fangliang.sort((x, y) => y.score - x.score);
-  out.huita.sort((x, y) => y.score - x.score);
-  out.fangliang = out.fangliang.slice(0, TOP_N);
-  out.huita = out.huita.slice(0, TOP_N);
+  const pick = (arr) => arr.filter((x) => x.score >= MIN_SCORE).sort((x, y) => y.score - x.score).slice(0, TOP_N);
+  out.fangliang = pick(out.fangliang);
+  out.huita = pick(out.huita);
   return out;
 }
 
-function row(s, score, volTimes, reasons) {
+function row(s, score, volTimes, reasons, breakdown) {
   return {
     code: s.code, name: s.name, price: s.price, pct: s.pct,
     volTimes: volTimes != null ? +volTimes.toFixed(2) : null,
     turnover: s.turnover, floatCap: s.floatCap, industry: s.industry,
-    score, reasons,
+    score, breakdown: breakdown || [], reasons,
   };
 }
 

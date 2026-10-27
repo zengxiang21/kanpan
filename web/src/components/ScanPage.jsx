@@ -12,7 +12,14 @@ function ScanTable({ rows, onWatch, onOpenStock, emptyText }) {
         {rows.length === 0 && <tr><td colSpan={9} className="empty">{emptyText}</td></tr>}
         {rows.map((s) => (
           <tr key={s.code}>
-            <td><span className={`lb ${s.score >= 75 ? 'lb-high' : ''}`}>{s.score}</span></td>
+            <td className="score-cell" title={(s.breakdown || []).map((b) => `${b.k} +${b.v}`).join('\n')}>
+              <span className={`lb ${s.score >= 80 ? 'lb-high' : ''}`}>{s.score}</span>
+              {(s.breakdown || []).length > 0 && (
+                <div className="score-break">
+                  {s.breakdown.map((b) => <small key={b.k}>{b.k}+{b.v}</small>)}
+                </div>
+              )}
+            </td>
             <td className="name"><span className="name-link" onClick={() => onOpenStock(s.code, s.name)}>{s.name}<small>{s.code}</small></span></td>
             <td className={pctCls(s.pct)}>{fmtPrice(s.price)}</td>
             <td className={`bold ${pctCls(s.pct)}`}>{fmtPct(s.pct)}</td>

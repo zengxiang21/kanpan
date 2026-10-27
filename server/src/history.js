@@ -30,9 +30,15 @@ export function loadHistory() {
 }
 
 function saveHistory() {
-  fs.mkdirSync(DIR, { recursive: true });
-  historyState.meta.count = Object.keys(historyState.bars).length;
-  fs.writeFileSync(FILE, JSON.stringify({ meta: historyState.meta, bars: historyState.bars }));
+  try {
+    fs.mkdirSync(DIR, { recursive: true });
+    historyState.meta.count = Object.keys(historyState.bars).length;
+    const tmp = FILE + '.tmp';
+    fs.writeFileSync(tmp, JSON.stringify({ meta: historyState.meta, bars: historyState.bars }));
+    fs.renameSync(tmp, FILE); // 原子写入：进程被杀也不会产生半个损坏文件
+  } catch (e) {
+    console.error('[history] 落盘失败', e.message);
+  }
 }
 
 function txCode(code) {
@@ -100,12 +106,14 @@ async function fetchKlineSina(code) {
 async function downloadBatch(codes, lastDate, delayMs) {
   let ok = 0, fail = 0;
   for (const code of codes) {
-    if (lastDate) {
-      const mine = historyState.bars[code];
-      if (mine && mine.length && mine.at(-1)[0] === lastDate) {
-        ok++;
-        continue;
-      }
+    const mine = historyState.bars[code];
+    if (lastDate && mine && mine.length && mine.at(-1)[0] === lastDate) {
+      ok++; // 已是最新，增量跳过
+      continue;
+    }
+    if (!lastDate && mine && mine.length >= BARS - 5) {
+      ok++; // 断点续传：中断后重启，已有完整历史的不再重拉
+      continue;
     }
     try {
       if (Date.now() < breaker.txDownUntil) throw new Error('tx熔断中');
