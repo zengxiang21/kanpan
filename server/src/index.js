@@ -3,7 +3,8 @@ import express from 'express';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { state, startScheduler, marketPhase, runSweep } from './state.js';
-import { getQuotes, getNews, getGlobal, getMinute, getUSStocks, getSentiment, getSectorBoard, sourceStatus } from './em.js';
+import { getQuotes, getNews, getGlobal, getMinute, getUSStocks, getSentiment, getSectorBoard, getLHBCodes, sourceStatus } from './em.js';
+import { saveAuctionSnapshot, getAuctionByDate, listAuctionDates, updateAuctionCloses } from './auctionstore.js';
 import { scanAll, reflowScan, auctionScan } from './scan.js';
 import { historyState, getKline } from './history.js';
 import { buildReview, saveReviewIfNeeded, latestSavedReview, buildPlans, reviewDates, reviewByDate } from './review.js';
@@ -56,11 +57,34 @@ app.get('/api/scan', (req, res) => {
   });
 });
 
-// 竞价雷达（9:15-9:25 真实竞价；其余时段为昨日快照预演）
-app.get('/api/auction', (req, res) => {
+// 竞价雷达（9:15-9:25 真实竞价；其余为预演；9:25 定稿存档，收盘回填复盘）
+const lhbCache = { date: null, codes: [] };
+app.get('/api/auction', async (req, res) => {
+  const date = String(req.query.date || '');
+  if (/^\d{8}$/.test(date)) {
+    return res.json(getAuctionByDate(date) || { mode: 'archive', rows: [], directions: [], note: '该日无竞价存档' });
+  }
   const phase = marketPhase();
-  res.json({ ...auctionScan(state.marketSweep, state.pools, phase), phase });
+  const lhbDate = state.pools.prevDate;
+  if (lhbDate && lhbCache.date !== lhbDate) {
+    try {
+      lhbCache.codes = await getLHBCodes(lhbDate);
+      lhbCache.date = lhbDate;
+      console.log('[lhb] 昨日龙虎榜', lhbDate, '·', lhbCache.codes.length, '只');
+    } catch { /* 失败用空集，下轮重试 */ }
+  }
+  const result = auctionScan(state.marketSweep, state.pools, phase, { lhbCodes: new Set(lhbCache.codes), lhbDate });
+  if ((phase === 'auction_end' || phase === 'open') && state.tradingDay) {
+    saveAuctionSnapshot(state.tradingDay, {
+      date: state.tradingDay, savedAt: Date.now(), mode: result.mode,
+      lhbDate, rows: result.rows.map((r) => ({ ...r })), directions: result.directions,
+    });
+  }
+  res.json(result);
 });
+
+// 竞价存档日期列表
+app.get('/api/auction/dates', (req, res) => res.json(listAuctionDates()));
 
 // 隔夜外围
 app.get('/api/global', async (req, res) => {

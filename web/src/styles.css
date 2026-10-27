@@ -276,6 +276,8 @@ tr.clickable { cursor: pointer; }
 .prem-row { display: flex; align-items: center; gap: 8px; padding: 3px 0; font-size: 13px; border-bottom: 1px dashed #21262d; }
 .dir-tag { font-size: 11px; color: var(--muted); background: var(--panel2); border-radius: 4px; padding: 1px 6px; }
 .dir-top { border-color: var(--accent) !important; }
+.lhb-badge { margin-left: 4px; font-size: 12px; }
+.dir-btn { cursor: pointer; text-align: left; }
 
 @media (max-width: 1100px) {
   .index-strip { grid-template-columns: repeat(2, 1fr); }

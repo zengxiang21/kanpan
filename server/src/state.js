@@ -5,6 +5,7 @@ import { fileURLToPath } from 'node:url';
 import { getIndices, getRank, getPool, sinaFullSweep, sourceStatus } from './em.js';
 import { ensureHistoryStarted } from './history.js';
 import { loadIndustryMap, ensureIndustryMapStarted } from './industries.js';
+import { updateAuctionCloses } from './auctionstore.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const DATA_DIR = path.join(__dirname, '..', 'data');
@@ -418,6 +419,13 @@ export function startScheduler(broadcast) {
     do {
       try {
         saveReviewIfNeeded(state, marketPhase());
+        // 收盘后回填竞价快照的收盘涨幅
+        const { minutes: rm, dow: rd } = shParts();
+        if (isTradingDow(rd) && rm >= 905 && state.marketSweep && state.tradingDay) {
+          const ztSet = new Set(state.pools.zt.map((z) => z.code));
+          const closeMap = new Map(state.marketSweep.rows.map((r) => [r.code, { pct: r.pct, sealed: ztSet.has(r.code) }]));
+          updateAuctionCloses(state.tradingDay, closeMap);
+        }
       } catch { /* 不影响行情 */ }
       await new Promise((r) => setTimeout(r, 5 * 60_000));
     } while (true);

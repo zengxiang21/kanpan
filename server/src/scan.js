@@ -229,72 +229,91 @@ export function reflowScan(sweepRows, pools) {
 
 // ---- 竞价雷达 ----
 // mode: auction=9:15-9:25 真实竞价数据；preview=非竞价时段（上一交易日收盘快照，仅供预演）
-// 输出含 directions：按方向(行业)聚合的竞价强弱，用于确认今日主攻方向
+// 只选有涨停基因的超短票（昨日涨停 或 近10日强势）；输出含方向聚合与龙头排序字段
 import { industryOf } from './industries.js';
 
-export function auctionScan(sweepRows, pools, phase) {
+export function auctionScan(sweepRows, pools, phase, extras = {}) {
   const mode = phase === 'auction' || phase === 'auction_end' ? 'auction' : 'preview';
-  const empty = { mode, rows: [], directions: [], note: '' };
+  const empty = { mode, rows: [], directions: [], note: '', lhbDate: extras.lhbDate || null };
   if (!sweepRows) return { ...empty, note: '等待全市场快照' };
   const prevZtMap = new Map((pools?.prevZt || []).map((z) => [z.code, z.lianban || 1]));
+  const todayZtMap = new Map((pools?.zt || []).map((z) => [z.code, z]));
+  const lhbSet = extras.lhbCodes || new Set();
   const today = new Date().toLocaleDateString('sv-SE', { timeZone: 'Asia/Shanghai' });
 
   for (const s of sweepRows.rows) {
-    if (!Number.isFinite(s.price) || !Number.isFinite(s.pct) || s.price < 3) continue;
+    if (!Number.isFinite(s.price) || s.price < 3) continue;
     if (s.isST) continue;
-    if (!(s.pct >= 2 && s.pct <= 7)) continue;
+    // 历史与强势基因
+    const hist0 = historyState.bars[s.code];
+    let a = null;
+    if (hist0 && hist0.length >= 25) {
+      let h = hist0;
+      if (h.length && h.at(-1)[0] === today) h = h.slice(0, -1);
+      if (h.length >= 25) a = analyzeHistory(h);
+    }
+    const strongDay = a ? a.strongDay : 0;
+    const lianbanPrev = prevZtMap.get(s.code) || null;
+    // 超短资格预筛：必须有涨停基因（昨日涨停 或 近10日大涨/涨停）
+    if (!lianbanPrev && strongDay < 1) continue;
+    if (!Number.isFinite(s.pct) || !(s.pct >= 1.5 && s.pct <= 7.5)) continue; // 竞价甜区
     const isLimitOpen = s.prevClose > 0 && s.price >= s.prevClose * (1 + limitUpRatio(s.code, s.isST)) - 0.001;
-    if (isLimitOpen) continue;
-    if (!Number.isFinite(s.amount) || s.amount < 2e6) continue;
+    if (isLimitOpen) continue; // 一字买不进
+    if (!Number.isFinite(s.amount) || s.amount < 1e7) continue; // 金额≥1000万，要求活跃
 
     const reasons = [];
     let score = 40;
     if (mode === 'auction') {
       reasons.push(`竞价高开 ${s.pct.toFixed(1)}%`, `竞价金额 ${(s.amount / 1e4).toFixed(0)}万`);
-      score += Math.min(15, s.amount / 1e7); // 竞价金额封顶+15
+      score += Math.min(15, s.amount / 1e7);
+      if (a && a.vol5) {
+        const auctionRatio = s.volume / a.vol5; // 竞价量 / 昨日全天均量
+        if (auctionRatio >= 0.005) { score += 8; reasons.push(`竞价强度 ${(auctionRatio * 100).toFixed(2)}%`); }
+        if (auctionRatio >= 0.015) { score += 10; reasons.push('竞价抢筹明显'); }
+      }
     } else {
       reasons.push(`昨日涨幅 ${s.pct.toFixed(1)}%（模拟高开）`, `昨日成交额 ${(s.amount / 1e8).toFixed(1)}亿`);
-      score += Math.min(8, s.amount / 2e7); // 昨日全天金额只做参考，封顶+8
+      score += Math.min(8, s.amount / 2e7);
     }
+    if (lianbanPrev) { score += 12; reasons.push(`昨日${lianbanPrev}板`); }
+    if (strongDay > 0) { score += 8; reasons.push(`近10日强势${strongDay}天`); }
+    const lhb = lhbSet.has(s.code);
+    if (lhb) { score += 8; reasons.push('昨日龙虎榜'); }
 
-    const hist0 = historyState.bars[s.code];
-    if (hist0 && hist0.length >= 25) {
-      let h = hist0;
-      if (h.length && h.at(-1)[0] === today) h = h.slice(0, -1);
-      if (h.length >= 25) {
-        const a = analyzeHistory(h);
-        if (mode === 'auction' && a.vol5) {
-          // 竞价强度 = 竞价成交量 / 昨日全天成交量：≥0.5% 温和、≥1.5% 强
-          const auctionRatio = s.volume / a.vol5;
-          if (auctionRatio >= 0.005) { score += 8; reasons.push(`竞价强度 ${(auctionRatio * 100).toFixed(2)}%`); }
-          if (auctionRatio >= 0.015) { score += 10; reasons.push('竞价抢筹明显'); }
-        }
-        if (a.strongDay > 0) { score += 8; reasons.push(`近10日强势${a.strongDay}天`); }
-      }
-    }
-    const lb = prevZtMap.get(s.code);
-    if (lb) { score += 12; reasons.push(`昨日${lb}板`); }
+    // 今日若已涨停 → 龙头排序字段（首封早/封单大者优先）
+    const zt = todayZtMap.get(s.code);
+    if (zt) reasons.push(`今日${zt.lianban || 1}板封单${(zt.sealFund / 1e8).toFixed(1)}亿`);
 
-    // 方向归类：优先行业映射，其次涨停池行业
-    const direction = industryOf(s.code) || (pools?.zt || []).concat(pools?.prevZt || []).find((z) => z.code === s.code)?.industry || '其他';
-    empty.rows.push({ ...row(s, Math.min(99, Math.round(score)), null, reasons), direction, amount: s.amount });
+    const direction = industryOf(s.code) || zt?.industry || null;
+    empty.rows.push({
+      ...row(s, Math.min(99, Math.round(score)), null, reasons),
+      direction, amount: s.amount,
+      gap: s.pct,               // 竞价涨幅（预演=昨日涨幅）
+      lianban: lianbanPrev,
+      firstSeal: zt?.firstSeal || null,
+      sealFund: zt?.sealFund || null,
+      lhb,
+      closePct: null, correct: null,
+    });
   }
 
   // 方向聚合：竞价强弱 = 家数 × 平均高开 × 金额（确认今日主攻方向）
   const dmap = new Map();
   for (const r of empty.rows) {
-    const d = dmap.get(r.direction) || { direction: r.direction, count: 0, sumGap: 0, sumAmount: 0, maxGap: 0, top: null };
+    const key = r.direction || '其他';
+    const d = dmap.get(key) || { direction: key, count: 0, sumGap: 0, sumAmount: 0, maxGap: 0, top: null, sealCount: 0 };
     d.count++;
     d.sumGap += r.pct;
     d.sumAmount += r.amount || 0;
     if (r.pct > d.maxGap) { d.maxGap = r.pct; d.top = r.name; }
-    dmap.set(r.direction, d);
+    if (r.firstSeal) d.sealCount++;
+    dmap.set(key, d);
   }
   empty.directions = [...dmap.values()]
     .map((d) => ({
       direction: d.direction, count: d.count,
       avgGap: +(d.sumGap / d.count).toFixed(2), maxGap: +d.maxGap.toFixed(2),
-      amount: Math.round(d.sumAmount), top: d.top,
+      amount: Math.round(d.sumAmount), top: d.top, sealed: d.sealCount,
       strength: Math.round(d.count * 2 + (d.sumGap / d.count) * 8 + d.sumAmount / 5e7),
     }))
     .sort((a, b) => b.strength - a.strength)
@@ -302,7 +321,7 @@ export function auctionScan(sweepRows, pools, phase) {
   empty.rows.sort((x, y) => y.score - x.score);
   empty.rows = empty.rows.slice(0, 40);
   empty.note = mode === 'auction'
-    ? '竞价实时数据 · 9:20 前可撤单注意虚假挂单 · 竞价强度=竞价量/昨日总量'
-    : '当前非竞价时段：以下为昨日收盘快照预演（涨幅=昨日涨幅、金额=昨日全天额），9:15 起自动切换为真实竞价';
+    ? '竞价实时数据 · 只含有涨停基因的超短票 · 竞价强度=竞价量/昨日总量'
+    : '预演模式（昨日收盘快照）：只显示有涨停基因的超短票；9:15 起自动切换为真实竞价';
   return empty;
 }

@@ -362,6 +362,18 @@ export async function getNews(num = 30) {
   }));
 }
 
+// ================= 龙虎榜（东财数据中心，独立域名不受 push2 风控影响） =================
+export async function getLHBCodes(date) {
+  // date: YYYYMMDD → yyyy-mm-dd；接口对 == 过滤报错，用 >= 再按日期精确筛选
+  const iso = `${date.slice(0, 4)}-${date.slice(4, 6)}-${date.slice(6, 8)}`;
+  const url =
+    'https://datacenter-web.eastmoney.com/api/data/v1/get?reportName=RPT_DAILYBILLBOARD_DETAILS' +
+    `&columns=SECURITY_CODE,SECURITY_NAME_ABBR,TRADE_DATE&filter=(TRADE_DATE%3E%3D%27${iso}%27)&pageSize=500&source=WEB`;
+  const d = JSON.parse(await fetchText(url, HEADERS_EM, 10000));
+  const rows = d?.result?.data || [];
+  return rows.filter((x) => String(x.TRADE_DATE || '').startsWith(iso)).map((x) => String(x.SECURITY_CODE));
+}
+
 // ================= 美股明星股（隔夜方向 → A股概念映射） =================
 export const US_MAP = [
   { key: 'NVDA', map: '算力 / CPO / 液冷' },

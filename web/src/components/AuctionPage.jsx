@@ -1,82 +1,125 @@
-// 竞价雷达：9:15-9:25 集合竞价抢筹候选（竞价时段 10 秒刷新）
+// 竞价雷达：方向强弱聚合 + 方向内龙头排序（连板/首封/封单）+ 竞价与收盘涨幅复盘 + 龙虎榜标记
 import { useEffect, useState } from 'react';
-import { fmtPrice, fmtPct, pctCls, fmtCap } from '../lib/format.js';
+import { fmtPrice, fmtPct, pctCls, fmtCap, fmtAmount } from '../lib/format.js';
 
 export default function AuctionPage({ onWatch, onOpenStock }) {
-  const [data, setData] = useState({ rows: [], note: '' });
-  const [phase, setPhase] = useState('');
+  const [data, setData] = useState({ mode: 'preview', rows: [], directions: [], note: '' });
+  const [selDir, setSelDir] = useState(null);
+  const [viewDate, setViewDate] = useState('');
+  const [dates, setDates] = useState([]);
+
+  useEffect(() => {
+    fetch('/api/auction/dates').then((r) => r.json()).then((d) => Array.isArray(d) && setDates(d)).catch(() => {});
+  }, []);
 
   useEffect(() => {
     let stop = false;
     const load = async () => {
       try {
-        const r = await fetch('/api/auction');
+        const r = await fetch(viewDate ? '/api/auction?date=' + viewDate : '/api/auction');
         const d = await r.json();
-        if (!stop) {
-          setData(d);
-          setPhase(d.phase);
-        }
-      } catch { /* 下轮重试 */ }
+        if (!stop && d && d.mode) setData(d);
+      } catch { /* 保留旧数据 */ }
     };
     load();
+    if (viewDate) return () => { stop = true; };
     const t = setInterval(load, 10_000);
     return () => { stop = true; clearInterval(t); };
-  }, []);
+  }, [viewDate]);
 
   const inAuction = data.mode === 'auction';
   const amtLabel = inAuction ? '竞价金额' : '昨日成交额';
-  const gapLabel = inAuction ? '高开' : '昨日涨幅(模拟高开)';
+  const gapLabel = inAuction ? '竞价涨幅' : '昨日涨幅(模拟)';
+
+  // 方向钻取：选中方向后按"短线龙头强度"排序（连板高 → 首封早 → 封单大）
+  let rows = data.rows || [];
+  if (selDir) {
+    rows = rows.filter((r) => r.direction === selDir);
+    rows = [...rows].sort((a, b) => {
+      const la = a.lianban || 0, lb = b.lianban || 0;
+      if (la !== lb) return lb - la;
+      const fa = a.firstSeal || '99:99:99', fb = b.firstSeal || '99:99:99';
+      if (fa !== fb) return fa.localeCompare(fb);
+      return (b.sealFund || 0) - (a.sealFund || 0);
+    });
+  }
 
   return (
     <div className="page">
       <h2 className="page-title">
         竞价雷达
         <span className={`page-tag ${inAuction ? 'tag-hot' : ''}`}>
-          {data.mode === 'auction' ? '集合竞价实时' : data.mode === 'preview' ? '预演模式（非竞价时段）' : '等待数据'}
+          {data.mode === 'auction' ? '集合竞价实时' : data.mode === 'preview' ? '预演模式（非竞价时段）' : '存档回看'}
         </span>
+        {dates.length > 0 && (
+          <select className="date-select" value={viewDate} onChange={(e) => { setViewDate(e.target.value); setSelDir(null); }}>
+            <option value="">最新（实时）</option>
+            {dates.map((d) => <option key={d} value={d}>存档 {d.slice(4, 6)}/{d.slice(6, 8)}</option>)}
+          </select>
+        )}
       </h2>
       <div className={`hint ${inAuction ? '' : 'warm-hint'}`} style={{ marginBottom: 10 }}>
         {data.note}
-        {inAuction ? '' : ' · 筛选逻辑：高开2%~7% + 非一字 + 金额门槛，按【金额/竞价强度/昨日连板/强势基因】打分'}
+        {data.lhbDate ? ` · 🐉 标记 = ${data.lhbDate.slice(4, 6)}/${data.lhbDate.slice(6, 8)} 龙虎榜个股` : ''}
+        {' · 只含有涨停基因的超短票'}
       </div>
+
       <div className="panel" style={{ marginBottom: 12 }}>
-        <h3>方向强弱 · 今天做哪个方向（竞价归类聚合）</h3>
+        <h3>方向强弱 · 今天做哪个方向（点击方向看该方向龙头排序）</h3>
         <div className="us-grid">
-          {(data.directions || []).slice(0, 8).map((d, i) => (
-            <div className={`us-card ${i === 0 ? 'dir-top' : ''}`} key={d.direction}>
+          {(data.directions || []).map((d, i) => (
+            <button className={`us-card dir-btn ${selDir === d.direction ? 'dir-top' : ''}`} key={d.direction}
+              onClick={() => setSelDir(selDir === d.direction ? null : d.direction)}
+              title="点击筛选该方向并按龙头强度排序">
               <div className="us-head">
-                <b>{i === 0 ? '🥇 ' : ''}{d.direction}</b>
+                <b>{i === 0 && !selDir ? '🥇 ' : ''}{d.direction}</b>
                 <span className="up bold">{d.count} 只</span>
               </div>
               <div className="muted" style={{ fontSize: 11 }}>
-                平均高开 +{d.avgGap}% · 最强 {d.maxGap}% · 金额 {(d.amount / 1e8).toFixed(1)}亿 · 代表 {d.top}
+                平均 +{d.avgGap}% · 最强 +{d.maxGap}% · 金额 {(d.amount / 1e8).toFixed(1)}亿{d.sealed ? ` · 已封 ${d.sealed}` : ''} · 代表 {d.top}
               </div>
-            </div>
+            </button>
           ))}
           {(data.directions || []).length === 0 && <div className="empty">暂无方向聚合数据</div>}
         </div>
-        <div className="hint">
-          主攻方向 = 家数多 + 平均高开高 + 金额大 三者兼顾的榜一方向（与板块轮动页的行业涨幅榜交叉验证）；
-          方向内只做竞价评分最高的 1~2 只，不做同方向第 3 名以外的跟风
+        <div className="hint" style={{ marginTop: 8 }}>
+          主攻方向 = 家数多 + 平均高开高 + 金额大 的榜一方向（与板块轮动页交叉验证）；方向内按【连板高→首封早→封单大】做龙头，不做同方向第 3 名以外跟风
+          {selDir ? ` · 当前筛选：${selDir}` : ' · 点击任一方向卡片进行钻取'}
         </div>
       </div>
 
       <table className="tbl">
         <thead>
-          <tr><th>评分</th><th>名称</th><th>方向</th><th>{inAuction ? '竞价价' : '最新价'}</th><th>{gapLabel}</th><th>{amtLabel}</th><th>流通市值</th><th>命中点</th><th></th></tr>
+          <tr>
+            <th>评分</th><th>名称</th><th>方向</th><th>连板</th><th>首封/封单</th>
+            <th>{gapLabel}</th><th>收盘涨幅</th><th>结果</th><th>流通市值</th><th>命中点</th><th></th>
+          </tr>
         </thead>
         <tbody>
-          {data.rows.length === 0 && (
-            <tr><td colSpan={9} className="empty">{inAuction ? '暂无符合条件的候选' : '非竞价时段，以下为昨日强势股预演；9:15 后自动切换为真实竞价'}</td></tr>
+          {rows.length === 0 && (
+            <tr><td colSpan={11} className="empty">
+              {selDir ? `方向【${selDir}】暂无候选` : '暂无候选 —— 竞价时段实时刷新；预演模式显示昨日强势票'}
+            </td></tr>
           )}
-          {data.rows.map((s) => (
+          {rows.map((s) => (
             <tr key={s.code}>
               <td><span className={`lb ${s.score >= 70 ? 'lb-high' : ''}`}>{s.score}</span></td>
-              <td className="name"><span className="name-link" onClick={() => onOpenStock(s.code, s.name)}>{s.name}<small>{s.code}</small></span></td>
+              <td className="name">
+                <span className="name-link" onClick={() => onOpenStock(s.code, s.name)}>{s.name}<small>{s.code}</small></span>
+                {s.lhb && <span className="lhb-badge" title="昨日上龙虎榜">🐉</span>}
+              </td>
               <td><span className="dir-tag">{s.direction || '-'}</span></td>
-              <td className={pctCls(s.pct)}>{fmtPrice(s.price)}</td>
-              <td className={`bold ${pctCls(s.pct)}`}>{fmtPct(s.pct)}</td>
-              <td>{(s.reasons || []).find((r) => r.includes('额'))?.split(' ')[1] || '-'}</td>
+              <td>{s.lianban ? `${s.lianban}板` : '-'}</td>
+              <td>{s.firstSeal ? `${s.firstSeal.slice(0, 5)}/${fmtAmount(s.sealFund)}` : '-'}</td>
+              <td className={`bold ${pctCls(s.gap)}`}>{fmtPct(s.gap)}</td>
+              <td className={s.closePct != null ? pctCls(s.closePct) : 'muted'}>
+                {s.closePct != null ? fmtPct(s.closePct) : !viewDate && data.mode !== 'preview' ? fmtPct(s.pct) + '*' : '-'}
+              </td>
+              <td>
+                {s.correct != null ? (
+                  <span className={`lb ${s.correct > 0 ? 'lb-high' : 'lb-green'}`}>{s.correct > 0 ? `✓ +${s.correct}%` : `✗ ${s.correct}%`}</span>
+                ) : s.closePct != null ? <span className="muted">平</span> : '-'}
+              </td>
               <td>{fmtCap(s.floatCap)}</td>
               <td className="muted reasons-cell">{(s.reasons || []).join(' · ')}</td>
               <td><button className="mini" onClick={() => onWatch(s.code, s.name)}>+自选</button></td>
@@ -84,6 +127,10 @@ export default function AuctionPage({ onWatch, onOpenStock }) {
           ))}
         </tbody>
       </table>
+      <div className="hint" style={{ marginTop: 8 }}>
+        复盘口径：结果 = 收盘涨幅 − 竞价涨幅，&gt;0 代表"9:25 按信号竞价买入"当日浮盈 ✓。带 * 为盘中实时涨幅（收盘后自动回填）。
+        每日 9:25-9:30 打开本页即可定稿当日竞价存档。
+      </div>
     </div>
   );
 }
