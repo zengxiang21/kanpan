@@ -86,8 +86,8 @@ export default function ZtPool({ tick, pools, onWatch, onOpenStock }) {
                 {stocks.map((s) => (
                   <button className="stock-chip" key={s.code} title={`${s.industry || ''} · 首封 ${s.firstSeal || '-'} · 炸板${s.zhaCount}次 · 点击看详情`} onClick={() => onOpenStock(s.code, s.name)}>
                     <b>{s.name}</b>
-                    <span className={pctCls(s.pct)}>{fmtPct(s.pct)}</span>
-                    <small>{s.firstSeal || '-'}</small>
+                    <span className={pctCls(s.pct)}>{fmtPct(s.pct)}{s.firstSeal && s.firstSeal >= '14:00' ? ' ·尾盘' : s.firstSeal && s.firstSeal >= '13:00' ? ' ·午后' : ''}</span>
+                    <small>{s.firstSeal || '-'}{s.zhaCount > 0 ? ` ·炸${s.zhaCount}` : ''}</small>
                   </button>
                 ))}
               </div>

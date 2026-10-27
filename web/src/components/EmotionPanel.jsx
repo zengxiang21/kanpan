@@ -80,6 +80,30 @@ export default function EmotionPanel({ tick, pools }) {
         </div>
       )}
 
+      {t.dist13 && (
+        <div className="panel" style={{ marginBottom: 12 }}>
+          <h3>涨跌分布（全市场 13 档 · 每 5 分钟全量扫描）</h3>
+          <div className="bars">
+            {t.dist13.map((b) => {
+              const max = Math.max(1, ...t.dist13.map((x) => x.count));
+              const w = Math.max((b.count / max) * 100, b.count > 0 ? 2 : 0);
+              const down = b.label.startsWith('跌');
+              return (
+                <div className="bar-row" key={b.label}>
+                  <span className="bar-label">{b.label}</span>
+                  <div className="bar-track">
+                    <div className={`bar-fill ${down ? 'fill-down' : ''}`} style={{ width: `${w}%` }}>
+                      {b.count > 0 && <em>{b.count}</em>}
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+          <div className="hint">红色档多=普涨赚钱效应；深跌档多=防守等待。涨停附近含 20cm 未板的高涨幅票</div>
+        </div>
+      )}
+
       <div className="row2">
         <div className="panel">
           <h3>连板分布</h3>

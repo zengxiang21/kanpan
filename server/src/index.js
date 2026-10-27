@@ -3,7 +3,7 @@ import express from 'express';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { state, startScheduler, marketPhase, runSweep } from './state.js';
-import { getQuotes, getNews, getGlobal, getMinute, getUSStocks, getSentiment, sourceStatus } from './em.js';
+import { getQuotes, getNews, getGlobal, getMinute, getUSStocks, getSentiment, getSectorBoard, sourceStatus } from './em.js';
 import { scanAll, reflowScan, auctionScan } from './scan.js';
 import { historyState, getKline } from './history.js';
 import { buildReview, saveReviewIfNeeded, latestSavedReview, buildPlans, reviewDates, reviewByDate } from './review.js';
@@ -115,6 +115,15 @@ app.get('/api/plan', async (req, res) => {
   const codes = String(req.query.codes || '').split(',').map((s) => s.trim()).filter((c) => /^\d{6}$/.test(c)).slice(0, 8);
   try {
     res.json(await buildPlans(codes, state));
+  } catch (e) {
+    res.status(502).json({ error: e.message });
+  }
+});
+
+// 板块轮动（新浪行业板块实时涨跌 + 领涨股）
+app.get('/api/sectors', async (req, res) => {
+  try {
+    res.json(await getSectorBoard());
   } catch (e) {
     res.status(502).json({ error: e.message });
   }

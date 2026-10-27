@@ -394,7 +394,22 @@ export async function getUSStocks() {
   return US_MAP.map((s) => ({ ...(byKey.get(s.key) || { key: s.key, name: s.key, price: null, pct: null }), map: s.map }));
 }
 
-// ================= 舆论热度：快讯标题 × 题材词典词频 =================
+// ================= 板块轮动（新浪行业板块，一次请求全市场板块涨跌） =================
+export async function getSectorBoard() {
+  const txt = await fetchGBK('https://vip.stock.finance.sina.com.cn/q/view/newSinaHy.php', HEADERS_SINA);
+  const json = txt.slice(txt.indexOf('{'), txt.lastIndexOf('}') + 1);
+  const obj = JSON.parse(json);
+  const sectors = Object.values(obj).map((raw) => {
+    const f = String(raw).split(',');
+    return {
+      code: f[0], name: f[1], count: parseInt(f[2], 10) || 0,
+      pct: parseFloat(f[5]) || 0, amount: parseFloat(f[7]) || 0,
+      leader: f[12] || null, leaderCode: (f[8] || '').replace(/^[a-z]{2}/, ''),
+      leaderPct: parseFloat(f[11]) || 0,
+    };
+  }).filter((s) => s.name);
+  return sectors.sort((a, b) => b.pct - a.pct);
+}
 export const THEME_WORDS = {
   算力AI: ['算力', 'CPO', '光模块', '英伟达', '大模型', 'AI应用', 'OpenAI'],
   机器人: ['机器人', '人形', '具身智能'],

@@ -247,6 +247,33 @@ export async function refreshTick() {
 
   const premium = computePremium(sweep, state.pools.prevZt);
   const jinji = computeJinji(state.pools);
+
+  // 涨跌分布 13 档（全市场扫描新鲜时计算）
+  let dist13 = null;
+  if (sweep && Date.now() - sweep.updatedAt < 10 * 60_000) {
+    const buckets = [
+      ['跌停附近', (p) => p <= -9.7], ['跌7-10', (p) => p > -9.7 && p <= -7], ['跌5-7', (p) => p > -7 && p <= -5],
+      ['跌3-5', (p) => p > -5 && p <= -3], ['跌1-3', (p) => p > -3 && p <= -1], ['微跌', (p) => p > -1 && p < 0],
+      ['平盘', (p) => p === 0], ['微涨', (p) => p > 0 && p < 1], ['涨1-3', (p) => p >= 1 && p < 3],
+      ['涨3-5', (p) => p >= 3 && p < 5], ['涨5-7', (p) => p >= 5 && p < 7], ['涨7-10', (p) => p >= 7 && p < 9.7],
+      ['涨停附近', (p) => p >= 9.7],
+    ];
+    dist13 = buckets.map(([label, fn]) => ({ label, count: sweep.rows.filter((r) => Number.isFinite(r.pct) && fn(r.pct)).length }));
+  }
+
+  // 昨日涨停股今日表现明细（溢价明细）
+  let premiumDetail = null;
+  if (sweep && state.pools.prevZt?.length) {
+    const map = new Map(sweep.rows.map((r) => [r.code, r]));
+    premiumDetail = state.pools.prevZt
+      .map((z) => {
+        const r = map.get(z.code);
+        return r ? { code: z.code, name: z.name, lianban: z.lianban || 1, pct: r.pct, price: r.price } : null;
+      })
+      .filter(Boolean)
+      .sort((a, b) => b.pct - a.pct);
+  }
+
   const env = envScore({
     advancers, decliners, ztCount,
     dtCount: state.pools.dt.length,
@@ -273,7 +300,7 @@ export async function refreshTick() {
     maxLianban,
     lianbanDist: dist,
     emotionLabel: emotionLabel(ztCount, zhaRate ?? 0, maxLianban),
-    premium, jinji, env,
+    premium, jinji, env, dist13, premiumDetail,
     gainers: gainRes.data,
     volRatio: vrRes.data,
     amountTop: amtRes.data,

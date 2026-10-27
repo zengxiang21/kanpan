@@ -270,6 +270,10 @@ tr.clickable { cursor: pointer; }
 .score-cell { min-width: 96px; }
 .score-break { display: flex; flex-wrap: wrap; gap: 2px 6px; margin-top: 2px; }
 .score-break small { font-size: 10px; color: var(--muted); }
+.fill-down { background: linear-gradient(90deg, #14532d, #2ecc8f) !important; }
+.fill-flat { background: #3d444d !important; }
+.prem-detail { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.prem-row { display: flex; align-items: center; gap: 8px; padding: 3px 0; font-size: 13px; border-bottom: 1px dashed #21262d; }
 
 @media (max-width: 1100px) {
   .index-strip { grid-template-columns: repeat(2, 1fr); }

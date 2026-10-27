@@ -14,6 +14,7 @@ import KnowledgePage from './components/KnowledgePage.jsx';
 import JournalPage from './components/JournalPage.jsx';
 import StockDetail from './components/StockDetail.jsx';
 import ReviewPage from './components/ReviewPage.jsx';
+import SectorsPage from './components/SectorsPage.jsx';
 
 const MENU = [
   {
@@ -27,6 +28,7 @@ const MENU = [
     group: '盘中',
     items: [
       { key: 'emotion', label: '情绪总览', comp: EmotionPanel },
+      { key: 'sectors', label: '板块轮动', comp: SectorsPage },
       { key: 'ranks', label: '市场扫描', comp: (p) => <Ranks {...p} />, badge: 'ranks' },
       { key: 'ztpool', label: '涨停天梯', comp: ZtPool, badge: 'zt' },
       { key: 'scan', label: '形态选股', comp: ScanPage },

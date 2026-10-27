@@ -1,6 +1,6 @@
 // 盘前决策页：开仓环境评分卡 + 昨日涨停溢价/晋级率 + 隔夜外围 + 7×24 快讯
 import { useEffect, useState } from 'react';
-import { fmtAmount, fmtTime, fmtPrice } from '../lib/format.js';
+import { fmtAmount, fmtTime, fmtPrice, fmtPct } from '../lib/format.js';
 import { useFlash } from '../lib/useFlash.js';
 
 function UsCard({ s }) {
@@ -119,6 +119,34 @@ export default function PreMarket({ tick }) {
           <div className="v">{tick?.emotionLabel || '-'}</div>
           <div className="note">{tick ? `涨停 ${tick.ztCount} · 炸板 ${tick.zbCount} · 最高 ${tick.maxLianban} 板` : ''}</div>
         </div>
+      </div>
+
+      <div className="panel" style={{ marginBottom: 12 }}>
+        <h3>昨日涨停股表现明细（溢价不再只看平均）</h3>
+        {tick?.premiumDetail?.length ? (
+          <div className="prem-detail">
+            <div>
+              <div className="k" style={{ color: 'var(--up)', marginBottom: 4 }}>最强 Top8（承接最好）</div>
+              {tick.premiumDetail.slice(0, 8).map((p) => (
+                <div className="prem-row" key={p.code}>
+                  <span className="lb">{p.lianban}板</span>
+                  <b>{p.name}</b>
+                  <span className="up">{fmtPct(p.pct)}</span>
+                </div>
+              ))}
+            </div>
+            <div>
+              <div className="k" style={{ color: 'var(--down)', marginBottom: 4 }}>最弱 Top8（亏钱效应来源）</div>
+              {tick.premiumDetail.slice(-8).reverse().map((p) => (
+                <div className="prem-row" key={p.code}>
+                  <span className="lb">{p.lianban}板</span>
+                  <b>{p.name}</b>
+                  <span className="down">{fmtPct(p.pct)}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        ) : <div className="empty">待今日开盘（开盘后自动显示昨日每只涨停股的今日表现）</div>}
       </div>
 
       <div className="panel" style={{ marginBottom: 12 }}>
