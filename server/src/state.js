@@ -371,7 +371,7 @@ export function loadDaily() {
   }
 }
 
-// ---------- 调度 ----------
+// ---------- 调度（间隔触发 + 防重入：任何一次卡死/异常都不会拖死后续轮询） ----------
 function phaseIntervals() {
   const phase = marketPhase();
   if (phase === 'closed') return { tick: 60_000, pools: 300_000, sweep: 30 * 60_000 };
@@ -383,84 +383,109 @@ export function startScheduler(broadcast) {
   loadIndustryMap();
   let poolsLoaded = false;
   let historyKicked = false;
+  let tickBusy = false;
+  let poolsBusy = false;
 
-  async function loopTick() {
+  async function tickOnce() {
+    if (tickBusy) return;
+    if (marketPhase() === 'closed' && state.tick && Date.now() - state.tick.updatedAt < 55_000) return; // 收盘降频
+    tickBusy = true;
     try {
       await refreshTick();
       if (!poolsLoaded) await refreshPools();
       broadcast('tick', state.tick);
     } catch (e) {
       console.error('[tick]', e.message);
+    } finally {
+      tickBusy = false;
     }
-    setTimeout(loopTick, phaseIntervals().tick);
   }
 
-  async function loopPools() {
+  async function poolsOnce() {
+    if (poolsBusy) return;
+    poolsBusy = true;
     try {
       await refreshPools();
       poolsLoaded = true;
       broadcast('pools', state.pools);
     } catch (e) {
       console.error('[pools]', e.message);
+    } finally {
+      poolsBusy = false;
     }
-    setTimeout(loopPools, phaseIntervals().pools);
   }
 
-  async function loopSweep() {
-    await new Promise((r) => setTimeout(r, 10_000));
-    do {
-      await runSweep();
-      if (!historyKicked && state.marketSweep) {
-        historyKicked = true;
-        ensureHistoryStarted(() => (state.marketSweep ? state.marketSweep.rows.map((r) => r.code) : null));
-        ensureIndustryMapStarted();
+  let sweepBusy = false;
+  async function sweepOnce() {
+    if (sweepBusy) return;
+    if (state.marketSweep && Date.now() - state.marketSweep.updatedAt < phaseIntervals().sweep - 500) return;
+    sweepBusy = true;
+    if (!historyKicked && state.marketSweep) {
+      historyKicked = true;
+      ensureHistoryStarted(() => (state.marketSweep ? state.marketSweep.rows.map((r) => r.code) : null));
+      ensureIndustryMapStarted();
+    }
+  }
+
+  async function reviewOnce() {
+    try {
+      saveReviewIfNeeded(state, marketPhase());
+      // 9:25-9:30 竞价定稿：无论页面是否打开，自动落盘当日竞价雷达
+      const ph = marketPhase();
+      if (ph === 'auction_end' && state.tradingDay && !auctionSavedToday(state.tradingDay) && state.marketSweep) {
+        const a = auctionScan(state.marketSweep, state.pools, ph, { lhbCodes: new Set() });
+        saveAuctionSnapshot(state.tradingDay, {
+          date: state.tradingDay, savedAt: Date.now(), mode: a.mode,
+          rows: a.rows.map((r) => ({ ...r })), directions: a.directions,
+        });
       }
-      await new Promise((r) => setTimeout(r, phaseIntervals().sweep));
-    } while (true);
+      // 收盘后回填竞价快照的收盘涨幅
+      const { minutes: rm, dow: rd } = shParts();
+      if (isTradingDow(rd) && rm >= 905 && state.marketSweep && state.tradingDay) {
+        const ztSet = new Set(state.pools.zt.map((z) => z.code));
+        const closeMap = new Map(state.marketSweep.rows.map((r) => [r.code, { pct: r.pct, sealed: ztSet.has(r.code) }]));
+        updateAuctionCloses(state.tradingDay, closeMap);
+      }
+      // 云端同步：交易时段每 5 分钟把最新数据推到 GitHub Pages（电脑开着即自动）
+      const now = Date.now();
+      const { minutes, dow } = shParts();
+      const inSession = isTradingDow(dow) && ((minutes >= 550 && minutes <= 900) || minutes >= 905);
+      if (inSession && now - lastCloudPush > 5 * 60_000) {
+        lastCloudPush = now;
+        const { execFile } = await import('node:child_process');
+        const script = path.join(__dirname, '..', 'scripts', 'push-cloud.mjs');
+        execFile(process.execPath, [script], { cwd: path.join(__dirname, '..'), timeout: 120_000 }, (err, so) => {
+          if (err) console.error('[cloud]', String(err.message).split('\n')[0]);
+          else console.log('[cloud]', String(so).trim().split('\n').at(-1));
+        });
+      }
+    } catch { /* 不影响行情 */ }
   }
 
-  async function loopReview() {
-    await new Promise((r) => setTimeout(r, 30_000));
-    let lastCloudPush = 0;
-    do {
-      try {
-        saveReviewIfNeeded(state, marketPhase());
-        // 9:25-9:30 竞价定稿：无论页面是否打开，自动落盘当日竞价雷达
-        const ph = marketPhase();
-        if (ph === 'auction_end' && state.tradingDay && !auctionSavedToday(state.tradingDay) && state.marketSweep) {
-          const a = auctionScan(state.marketSweep, state.pools, ph, { lhbCodes: new Set() });
-          saveAuctionSnapshot(state.tradingDay, {
-            date: state.tradingDay, savedAt: Date.now(), mode: a.mode,
-            rows: a.rows.map((r) => ({ ...r })), directions: a.directions,
-          });
-        }
-        // 收盘后回填竞价快照的收盘涨幅
-        const { minutes: rm, dow: rd } = shParts();
-        if (isTradingDow(rd) && rm >= 905 && state.marketSweep && state.tradingDay) {
-          const ztSet = new Set(state.pools.zt.map((z) => z.code));
-          const closeMap = new Map(state.marketSweep.rows.map((r) => [r.code, { pct: r.pct, sealed: ztSet.has(r.code) }]));
-          updateAuctionCloses(state.tradingDay, closeMap);
-        }
-        // 云端同步：交易时段每 5 分钟把最新数据推到 GitHub Pages（电脑开着即自动）
-        const now = Date.now();
-        const inSession = isTradingDow(rd) && ((rm >= 550 && rm <= 900) || rm >= 905);
-        if (inSession && now - lastCloudPush > 5 * 60_000) {
-          lastCloudPush = now;
-          import('../scripts/push-cloud.mjs').catch(() => {});
-          const { execFile } = await import('node:child_process');
-          const script = path.join(__dirname, '..', 'scripts', 'push-cloud.mjs');
-          execFile(process.execPath, [script], { cwd: path.join(__dirname, '..') }, (err, so) => {
-            if (err) console.error('[cloud]', err.message.split('\n')[0]);
-            else console.log('[cloud]', String(so).trim().split('\n').at(-1));
-          });
-        }
-      } catch { /* 不影响行情 */ }
-      await new Promise((r) => setTimeout(r, 60_000));
-    } while (true);
-  }
+  let lastCloudPush = 0;
 
-  loopTick();
-  loopPools();
-  loopSweep();
-  loopReview();
+  // 全部用 setInterval：回调抛错或单次挂起都不会终止后续调度
+  setInterval(() => { tickOnce(); }, phaseIntervals().tick);
+  setInterval(() => { poolsOnce(); }, 10_000);
+  setInterval(() => { sweepOnce(); }, 15_000);
+  setInterval(() => { reviewOnce(); }, 60_000);
+
+  // 看门狗：交易时段数据停滞 >3 分钟 → 强制重刷；连续 3 次失败 → 进程自尽（启动脚本自动拉起）
+  let staleStrikes = 0;
+  setInterval(() => {
+    const phase = marketPhase();
+    if (phase === 'closed') { staleStrikes = 0; return; }
+    const age = state.tick ? Date.now() - state.tick.updatedAt : Infinity;
+    if (age > 180_000) {
+      staleStrikes++;
+      console.error(`[watchdog] 数据停滞 ${Math.round(age / 1000)}s (${staleStrikes}/3) → 强制重刷`);
+      runSweep().then(() => refreshTick()).catch(() => {});
+      if (staleStrikes >= 3) {
+        console.error('[watchdog] 复苏失败，进程自尽等待重启');
+        process.exit(1);
+      }
+    } else {
+      staleStrikes = 0;
+    }
+  }, 90_000);
 }
