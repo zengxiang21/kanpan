@@ -1,8 +1,9 @@
 name: cloud-snapshot
 on:
   schedule:
-    - cron: '5 7 * * 1-5'   # 北京 15:05 收盘
-    - cron: '30 23 * * 0-4' # 北京 07:30 盘前（周一至周五）
+    - cron: '5 7 * * 1-5'     # 北京 15:05 收盘大快照
+    - cron: '30 23 * * 0-4'   # 北京 07:30 盘前
+    - cron: '*/5 1-7 * * 1-5' # 北京 09:00-15:55 交易时段每 5 分钟（公开仓库 Actions 免费不限量）
   workflow_dispatch:
 
 permissions:
