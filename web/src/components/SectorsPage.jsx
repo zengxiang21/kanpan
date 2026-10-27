@@ -1,6 +1,7 @@
 // 板块轮动：新浪行业板块实时涨跌 + 领涨股 + 题材涨停数（东财涨停池口径）
 import { useEffect, useState } from 'react';
 import { fmtPct, pctCls, fmtAmount } from '../lib/format.js';
+import { api, CLOUD } from '../lib/api.js';
 
 export default function SectorsPage({ pools }) {
   const [sectors, setSectors] = useState([]);
@@ -11,7 +12,7 @@ export default function SectorsPage({ pools }) {
     let stop = false;
     const load = async () => {
       try {
-        const d = await (await fetch('/api/sectors')).json();
+        const d = await api('sectors');
         if (!stop) {
           if (d.error) setErr(d.error);
           else { setErr(null); setSectors(d); setAt(Date.now()); }

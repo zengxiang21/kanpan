@@ -1,24 +1,41 @@
 // 竞价雷达：方向强弱聚合 + 方向内龙头排序（连板/首封/封单）+ 竞价与收盘涨幅复盘 + 龙虎榜标记
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { fmtPrice, fmtPct, pctCls, fmtCap, fmtAmount } from '../lib/format.js';
+import { api, CLOUD } from '../lib/api.js';
+
+function notify(title, body) {
+  try {
+    if (typeof Notification !== 'undefined' && Notification.permission === 'granted') new Notification(title, { body });
+  } catch { /* 忽略 */ }
+}
 
 export default function AuctionPage({ onWatch, onOpenStock }) {
   const [data, setData] = useState({ mode: 'preview', rows: [], directions: [], note: '' });
   const [selDir, setSelDir] = useState(null);
   const [viewDate, setViewDate] = useState('');
   const [dates, setDates] = useState([]);
+  const [only12, setOnly12] = useState(false);
+  const prevMode = useRef(null);
 
   useEffect(() => {
-    fetch('/api/auction/dates').then((r) => r.json()).then((d) => Array.isArray(d) && setDates(d)).catch(() => {});
+    api('auctionDates').then((d) => Array.isArray(d) && setDates(d)).catch(() => {});
   }, []);
 
   useEffect(() => {
     let stop = false;
     const load = async () => {
       try {
-        const r = await fetch(viewDate ? '/api/auction?date=' + viewDate : '/api/auction');
-        const d = await r.json();
-        if (!stop && d && d.mode) setData(d);
+        const d = await api(viewDate ? 'auction?date=' + viewDate : 'auction');
+        if (!stop && d && d.mode) {
+          // 竞价定稿瞬间（auction → auction_end）：推送竞价 Top3 与主攻方向
+          if (prevMode.current === 'auction' && d.mode === 'auction_end') {
+            const top = (d.rows || []).slice(0, 3).map((x) => `${x.name}(${(x.direction || '').slice(0, 6)})`).join('、');
+            const dir = d.directions?.[0];
+            notify('📢 竞价 Top3 定稿', `${top}${dir ? ` · 主攻：${dir.direction} ${d.count || ''}` : ''}`);
+          }
+          prevMode.current = d.mode;
+          setData(d);
+        }
       } catch { /* 保留旧数据 */ }
     };
     load();
@@ -28,6 +45,7 @@ export default function AuctionPage({ onWatch, onOpenStock }) {
   }, [viewDate]);
 
   const inAuction = data.mode === 'auction';
+  const showClose = data.mode !== 'preview';
   const amtLabel = inAuction ? '竞价金额' : '昨日成交额';
   const gapLabel = inAuction ? '竞价涨幅' : '昨日涨幅(预演)';
 
@@ -43,6 +61,7 @@ export default function AuctionPage({ onWatch, onOpenStock }) {
       return (b.sealFund || 0) - (a.sealFund || 0);
     });
   }
+  if (only12) rows = rows.filter((r) => r.lianban === 1);
 
   return (
     <div className="page">
@@ -62,6 +81,9 @@ export default function AuctionPage({ onWatch, onOpenStock }) {
         {data.note}
         {data.lhbDate ? ` · 🐉 标记 = ${data.lhbDate.slice(4, 6)}/${data.lhbDate.slice(6, 8)} 龙虎榜个股` : ''}
         {' · 只含有涨停基因的超短票'}
+        <button className={`mini ${only12 ? 'active-mini' : ''}`} style={{ marginLeft: 10 }} onClick={() => setOnly12(!only12)}>
+          {only12 ? '✓ 一进二候选' : '只看一进二（昨日首板）'}
+        </button>
       </div>
 
       <div className="panel" style={{ marginBottom: 12 }}>

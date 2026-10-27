@@ -1,6 +1,7 @@
 // 盘前决策页：开仓环境评分卡 + 昨日涨停溢价/晋级率 + 隔夜外围 + 7×24 快讯
 import { useEffect, useState } from 'react';
 import { fmtAmount, fmtTime, fmtPrice, fmtPct } from '../lib/format.js';
+import { api, CLOUD } from '../lib/api.js';
 import { useFlash } from '../lib/useFlash.js';
 
 function UsCard({ s }) {
@@ -47,15 +48,16 @@ export default function PreMarket({ tick }) {
   useEffect(() => {
     // 美股/全球指数 5 秒快刷（美股盘中是实时盘）；快讯/词频 60 秒
     const fast = () => {
-      fetch('/api/us').then((r) => r.json()).then((d) => Array.isArray(d) && setUs(d)).catch(() => {});
-      fetch('/api/global').then((r) => r.json()).then((d) => Array.isArray(d) && setGlobal(d)).catch(() => {});
+      api('us').then((d) => Array.isArray(d) && setUs(d)).catch(() => {});
+      api('global').then((d) => Array.isArray(d) && setGlobal(d)).catch(() => {});
     };
     const slow = () => {
-      fetch('/api/news').then((r) => r.json()).then((d) => Array.isArray(d) && setNews(d)).catch(() => {});
-      fetch('/api/sentiment').then((r) => r.json()).then((d) => d && d.themes && setSent(d)).catch(() => {});
+      api('news').then((d) => Array.isArray(d) && setNews(d)).catch(() => {});
+      api('sentiment').then((d) => d && d.themes && setSent(d)).catch(() => {});
     };
     fast();
     slow();
+    if (CLOUD) return;
     const t1 = setInterval(fast, 5_000);
     const t2 = setInterval(slow, 60_000);
     return () => { clearInterval(t1); clearInterval(t2); };

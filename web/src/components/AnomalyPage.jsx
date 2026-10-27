@@ -1,6 +1,6 @@
 // 异动监控：基于 SSE tick 流做逐帧对比（涨幅榜/量比榜/成交额榜 + 自选股），捕捉急拉/跳水
 import { useEffect, useRef, useState } from 'react';
-import { fmtPrice, fmtPct, pctCls } from '../lib/format.js';
+import { fmtPrice, fmtPct, pctCls, fmtAmount } from '../lib/format.js';
 
 const DELTA = 1.5; // 相邻两帧涨跌幅变化阈值（3秒内）
 
@@ -17,24 +17,41 @@ export default function AnomalyPage({ tick, watch, pools, onOpenStock }) {
   const [events, setEvents] = useState([]);
   const [notifyOn, setNotifyOn] = useState(() => localStorage.getItem('notify-on') === '1');
   const prevZbRef = useRef(null); // 炸板池 code 集合
+  const prevSealRef = useRef(new Map()); // 涨停股封单（封单骤减监控）
 
-  // 炸板即时提醒：新进炸板池的票
+  // 炸板即时提醒 + 封单骤减预警（打板排队监控）
   useEffect(() => {
     const zb = pools?.zb || [];
     const codes = new Set(zb.map((s) => s.code));
     const prev = prevZbRef.current;
     prevZbRef.current = codes;
-    if (!prev) return;
-    const fresh = zb.filter((s) => !prev.has(s.code));
-    if (fresh.length) {
-      const now = Date.now();
-      const evts = fresh.map((s) => ({
-        id: now + '-zb-' + s.code, time: now, code: s.code, name: s.name,
-        price: s.price, from: null, to: s.pct, delta: null, type: '炸板',
-      }));
-      setEvents((e) => [...evts, ...e].slice(0, 120));
-      for (const s of fresh) notify(`⚠ 炸板：${s.name}`, `首次封板时间 ${s.firstSeal || '-'} · 现价 ${s.price}`);
+    const now = Date.now();
+    const fresh = [];
+    if (prev) {
+      for (const s of zb.filter((x) => !prev.has(x.code))) {
+        fresh.push({
+          id: now + '-zb-' + s.code, time: now, code: s.code, name: s.name,
+          price: s.price, from: null, to: s.pct, delta: null, type: '炸板',
+        });
+        notify(`⚠ 炸板：${s.name}`, `首次封板时间 ${s.firstSeal || '-'} · 现价 ${s.price}`);
+      }
+      // 封单骤减：同一涨停股封单较上次缩水 >30%（且 >3000万）→ 撤单预警
+      const prevSeal = prevSealRef.current;
+      for (const s of pools?.zt || []) {
+        const before = prevSeal.get(s.code);
+        if (before && before > 3e6 && s.sealFund && s.sealFund < before * 0.7) {
+          fresh.push({
+            id: now + '-sf-' + s.code, time: now, code: s.code, name: s.name,
+            price: s.price, from: null, to: s.pct, delta: null, type: '封单骤减',
+          });
+          notify(`⚠ 封单骤减：${s.name}`, `封单 ${fmtAmount(before)} → ${fmtAmount(s.sealFund)}，注意撤单潮`);
+        }
+      }
     }
+    // 记录本次封单
+    const sealMap = new Map((pools?.zt || []).map((s) => [s.code, s.sealFund || 0]));
+    prevSealRef.current = sealMap;
+    if (fresh.length) setEvents((e) => [...fresh, ...e].slice(0, 120));
   }, [pools]);
 
   const toggleNotify = async () => {

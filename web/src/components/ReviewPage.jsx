@@ -1,6 +1,7 @@
 // 收盘复盘 + 明日应对策略 + 交易计划（关注股竞价应对表）
 import { useEffect, useState } from 'react';
 import { fmtPrice, fmtPct, pctCls, fmtAmount } from '../lib/format.js';
+import { api, CLOUD } from '../lib/api.js';
 import { useFlash } from '../lib/useFlash.js';
 
 function PlanCard({ plan, onOpenStock }) {
@@ -62,14 +63,14 @@ export default function ReviewPage({ tick, watch, onOpenStock }) {
   const flash = useFlash(review?.generatedAt, 60000);
 
   useEffect(() => {
-    fetch('/api/review/dates').then((r) => r.json()).then((d) => Array.isArray(d) && setDates(d)).catch(() => {});
+    api('reviewDates').then((d) => Array.isArray(d) && setDates(d)).catch(() => {});
   }, []);
 
   useEffect(() => {
     const load = async () => {
       try {
-        const url = viewDate ? '/api/review/bydate?date=' + viewDate : '/api/review';
-        const d = await (await fetch(url)).json();
+        const url = viewDate ? 'review/bydate?date=' + viewDate : 'review';
+        const d = await api(url);
         if (d && d.emotion) setReview(d);
       } catch { /* 保留旧 */ }
     };
@@ -83,7 +84,7 @@ export default function ReviewPage({ tick, watch, onOpenStock }) {
   useEffect(() => {
     localStorage.setItem('plan-picks', JSON.stringify(picked));
     if (!codes) { setPlans([]); return; }
-    fetch('/api/plan?codes=' + codes).then((r) => r.json()).then((d) => Array.isArray(d) && setPlans(d)).catch(() => {});
+    api('plan?codes=' + codes).then((d) => Array.isArray(d) && setPlans(d)).catch(() => {});
   }, [codes]);
 
   const addPick = (code) => {

@@ -1,0 +1,47 @@
+name: cloud-snapshot
+on:
+  schedule:
+    - cron: '5 7 * * 1-5'   # 北京 15:05 收盘
+    - cron: '30 23 * * 0-4' # 北京 07:30 盘前（周一至周五）
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pages: write
+  id-token: write
+
+jobs:
+  snapshot:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: 安装依赖
+        run: npm install --prefix server
+      - name: 生成云端数据
+        run: node scripts/ci-snapshot.mjs
+      - name: 提交数据到仓库
+        run: |
+          git config user.name "github-actions"
+          git config user.email "actions@github.com"
+          git add cloud/data.json
+          git commit -m "cloud snapshot $(date -u +%Y%m%d-%H%M)" || echo "nothing to commit"
+          git push
+      - name: 构建前端
+        run: |
+          npm install --prefix web
+          npm run build --prefix web
+      - name: 组装站点
+        run: |
+          mkdir -p site/cloud
+          cp -r web/dist/* site/
+          cp cloud/data.json site/cloud/data.json
+      - name: 发布到 gh-pages
+        uses: peaceiris/actions-gh-pages@v4
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: ./site
+          publish_branch: gh-pages
+          force_orphan: true

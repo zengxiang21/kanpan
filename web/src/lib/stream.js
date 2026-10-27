@@ -1,5 +1,17 @@
-// SSE 订阅：自动重连 + 首次快照兜底
+// SSE 订阅：自动重连 + 首次快照兜底；GitHub Pages 云端模式读取每日静态快照
+import { CLOUD } from './api.js';
+
 export function connect(onData, onStatus) {
+  if (CLOUD) {
+    fetch('/cloud/data.json')
+      .then((r) => r.json())
+      .then((json) => {
+        onData({ type: 'snapshot', tick: json.snapshot?.tick, pools: json.snapshot?.pools, updatedAt: json.generatedAt, tradingDay: json.tradingDay });
+        onStatus?.(true);
+      })
+      .catch(() => onStatus?.(false));
+    return () => {};
+  }
   let es = null;
   let closed = false;
 

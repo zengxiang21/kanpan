@@ -1,6 +1,7 @@
 // 形态选股：放量突破 / 缩量回踩 / 龙头回流（section 参数决定主视图）
 import { useEffect, useState, useCallback } from 'react';
 import { fmtPrice, fmtPct, pctCls, fmtCap } from '../lib/format.js';
+import { api, CLOUD } from '../lib/api.js';
 
 function ScanTable({ rows, onWatch, onOpenStock, emptyText }) {
   return (
@@ -44,8 +45,7 @@ export default function ScanPage({ tick, onWatch, onOpenStock, section = 'scan' 
   const load = useCallback(async () => {
     setLoading(true);
     try {
-      const r = await fetch('/api/scan');
-      setData(await r.json());
+      setData(await api('scan'));
     } catch { /* 保留旧数据 */ }
     setLoading(false);
   }, []);
@@ -58,7 +58,7 @@ export default function ScanPage({ tick, onWatch, onOpenStock, section = 'scan' 
   }, [load, auto]);
 
   useEffect(() => {
-    fetch('/api/backtest').then((r) => r.json()).then(setBt).catch(() => {});
+    api('backtest').then(setBt).catch(() => {});
   }, [data?.meta?.historyCount, data?.meta?.lastBarDate]);
 
   const meta = data?.meta;
