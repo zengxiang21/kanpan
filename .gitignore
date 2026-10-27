@@ -7,3 +7,5 @@ __pycache__/
 .env
 *.json
 !docs/cloud/data.json  
+
+.git-cred-tmp

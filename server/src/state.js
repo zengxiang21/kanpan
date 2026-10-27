@@ -421,6 +421,7 @@ export function startScheduler(broadcast) {
 
   async function loopReview() {
     await new Promise((r) => setTimeout(r, 30_000));
+    let lastCloudPush = 0;
     do {
       try {
         saveReviewIfNeeded(state, marketPhase());
@@ -440,8 +441,21 @@ export function startScheduler(broadcast) {
           const closeMap = new Map(state.marketSweep.rows.map((r) => [r.code, { pct: r.pct, sealed: ztSet.has(r.code) }]));
           updateAuctionCloses(state.tradingDay, closeMap);
         }
+        // 云端同步：交易时段每 5 分钟把最新数据推到 GitHub Pages（电脑开着即自动）
+        const now = Date.now();
+        const inSession = isTradingDow(rd) && ((rm >= 550 && rm <= 900) || rm >= 905);
+        if (inSession && now - lastCloudPush > 5 * 60_000) {
+          lastCloudPush = now;
+          import('../scripts/push-cloud.mjs').catch(() => {});
+          const { execFile } = await import('node:child_process');
+          const script = path.join(__dirname, '..', 'scripts', 'push-cloud.mjs');
+          execFile(process.execPath, [script], { cwd: path.join(__dirname, '..') }, (err, so) => {
+            if (err) console.error('[cloud]', err.message.split('\n')[0]);
+            else console.log('[cloud]', String(so).trim().split('\n').at(-1));
+          });
+        }
       } catch { /* 不影响行情 */ }
-      await new Promise((r) => setTimeout(r, 5 * 60_000));
+      await new Promise((r) => setTimeout(r, 60_000));
     } while (true);
   }
 
