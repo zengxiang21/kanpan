@@ -1,6 +1,32 @@
 // 盘前决策页：开仓环境评分卡 + 昨日涨停溢价/晋级率 + 隔夜外围 + 7×24 快讯
 import { useEffect, useState } from 'react';
-import { fmtAmount, fmtTime } from '../lib/format.js';
+import { fmtAmount, fmtTime, fmtPrice } from '../lib/format.js';
+import { useFlash } from '../lib/useFlash.js';
+
+function UsCard({ s }) {
+  const flash = useFlash(s.price);
+  return (
+    <div className={`us-card ${flash}`}>
+      <div className="us-head">
+        <b>{s.name}</b>
+        <span className={s.pct > 0 ? 'up' : s.pct < 0 ? 'down' : 'muted'}>
+          {s.pct != null ? (s.pct > 0 ? '+' : '') + s.pct + '%' : '-'}
+        </span>
+      </div>
+      <div className="muted" style={{ fontSize: 11 }}>{s.price != null ? fmtPrice(s.price) : ''} · {s.map}</div>
+    </div>
+  );
+}
+
+function GlobalCard({ g }) {
+  const flash = useFlash(g.price);
+  return (
+    <div className={`us-card ${flash}`}>
+      <div className="us-head"><b>{g.name}</b><span className={g.pct > 0 ? 'up' : g.pct < 0 ? 'down' : 'muted'}>{g.pct > 0 ? '+' : ''}{g.pct}%</span></div>
+      <div className="muted" style={{ fontSize: 11 }}>{GLOBAL_MAP[g.name] || ''} · {g.price}</div>
+    </div>
+  );
+}
 
 // 美股/外围方向 → A股概念 映射（人工维护，JSON 化后续做设置页）
 const GLOBAL_MAP = {
@@ -19,15 +45,20 @@ export default function PreMarket({ tick }) {
   const [sent, setSent] = useState(null);
 
   useEffect(() => {
-    const load = () => {
-      fetch('/api/global').then((r) => r.json()).then((d) => Array.isArray(d) && setGlobal(d)).catch(() => {});
+    // 美股/全球指数 5 秒快刷（美股盘中是实时盘）；快讯/词频 60 秒
+    const fast = () => {
       fetch('/api/us').then((r) => r.json()).then((d) => Array.isArray(d) && setUs(d)).catch(() => {});
+      fetch('/api/global').then((r) => r.json()).then((d) => Array.isArray(d) && setGlobal(d)).catch(() => {});
+    };
+    const slow = () => {
       fetch('/api/news').then((r) => r.json()).then((d) => Array.isArray(d) && setNews(d)).catch(() => {});
       fetch('/api/sentiment').then((r) => r.json()).then((d) => d && d.themes && setSent(d)).catch(() => {});
     };
-    load();
-    const t = setInterval(load, 60_000);
-    return () => clearInterval(t);
+    fast();
+    slow();
+    const t1 = setInterval(fast, 5_000);
+    const t2 = setInterval(slow, 60_000);
+    return () => { clearInterval(t1); clearInterval(t2); };
   }, []);
 
   const env = tick?.env;
@@ -91,31 +122,18 @@ export default function PreMarket({ tick }) {
       </div>
 
       <div className="panel" style={{ marginBottom: 12 }}>
-        <h3>隔夜外围 · 方向映射</h3>
+        <h3>隔夜外围 · 方向映射 <span className="page-tag">5 秒实时</span></h3>
         <div className="us-grid">
-          {global.map((g) => (
-            <div className="us-card" key={g.key}>
-              <div className="us-head"><b>{g.name}</b><span className={g.pct > 0 ? 'up' : g.pct < 0 ? 'down' : 'muted'}>{g.pct > 0 ? '+' : ''}{g.pct}%</span></div>
-              <div className="muted" style={{ fontSize: 11 }}>{GLOBAL_MAP[g.name] || ''} · {g.price}</div>
-            </div>
-          ))}
+          {global.map((g) => <GlobalCard key={g.key} g={g} />)}
           {global.length === 0 && <div className="empty">加载中…</div>}
         </div>
         <div className="hint">A50 期货是最直接的 A 股开盘先行指标</div>
       </div>
 
       <div className="panel" style={{ marginBottom: 12 }}>
-        <h3>美股明星股 · 隔夜方向 → A股概念映射</h3>
+        <h3>美股明星股 · 隔夜方向 → A股概念映射 <span className="page-tag">5 秒实时</span></h3>
         <div className="us-grid">
-          {us.map((s) => (
-            <div className="us-card" key={s.key}>
-              <div className="us-head">
-                <b>{s.name}</b>
-                <span className={s.pct > 0 ? 'up' : s.pct < 0 ? 'down' : 'muted'}>{s.pct != null ? (s.pct > 0 ? '+' : '') + s.pct + '%' : '-'}</span>
-              </div>
-              <div className="note">{s.map}</div>
-            </div>
-          ))}
+          {us.map((s) => <UsCard key={s.key} s={s} />)}
           {us.length === 0 && <div className="empty">加载中…</div>}
         </div>
         <div className="hint">隔夜大涨方向 = 今日 A 股对应概念的抢筹预期，到竞价雷达里验证</div>
