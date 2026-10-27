@@ -300,7 +300,8 @@ tr.clickable { cursor: pointer; }
   .menu { display: flex; gap: 4px; padding: 4px; }
   .menu-group { display: contents; }
   .menu-title { display: none; }
-  .menu-item { flex: none; padding: 7px 10px; border-radius: 6px; }
+  .menu-item { width: auto !important; flex: 0 0 auto; padding: 7px 10px; border-radius: 6px; }
+  .menu-item .menu-label { white-space: nowrap; }
   .menu-item em { display: none; }
   .sidebar-foot { border: none; padding: 6px; flex: none; }
   .collapse-btn { display: none; }
