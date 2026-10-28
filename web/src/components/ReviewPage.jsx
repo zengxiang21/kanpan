@@ -52,18 +52,13 @@ export default function ReviewPage({ tick, watch, onOpenStock }) {
   const [plans, setPlans] = useState([]);
   const [dates, setDates] = useState([]);
   const [viewDate, setViewDate] = useState(''); // 空 = 实时
-  const [picked, setPicked] = useState(() => {
-    try {
-      return JSON.parse(localStorage.getItem('plan-picks') || '[]');
-    } catch {
-      return [];
-    }
-  });
+  const [picked, setPicked] = useState([]);
   const [manual, setManual] = useState('');
   const flash = useFlash(review?.generatedAt, 60000);
 
   useEffect(() => {
     api('reviewDates').then((d) => Array.isArray(d) && setDates(d)).catch(() => {});
+    fetch('/api/user').then((r) => r.json()).then((u) => Array.isArray(u.picks) && u.picks.length && setPicked(u.picks)).catch(() => {});
   }, []);
 
   useEffect(() => {
@@ -82,7 +77,7 @@ export default function ReviewPage({ tick, watch, onOpenStock }) {
 
   const codes = picked.join(',');
   useEffect(() => {
-    localStorage.setItem('plan-picks', JSON.stringify(picked));
+    if (picked.length) fetch('/api/user', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ picks: picked }) }).catch(() => {});
     if (!codes) { setPlans([]); return; }
     api('plan?codes=' + codes).then((d) => Array.isArray(d) && setPlans(d)).catch(() => {});
   }, [codes]);

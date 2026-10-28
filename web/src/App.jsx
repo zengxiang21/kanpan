@@ -57,13 +57,7 @@ export default function App() {
   const [stock, setStock] = useState(null);
   const openStock = (code, name) => setStock({ code, name: name || code });
   const [collapsed, setCollapsed] = useState(false);
-  const [watch, setWatch] = useState(() => {
-    try {
-      return JSON.parse(localStorage.getItem('watchlist') || '[]');
-    } catch {
-      return [];
-    }
-  });
+  const [watch, setWatch] = useState([]);
 
   useEffect(() => connect(
     (msg) => {
@@ -84,11 +78,16 @@ export default function App() {
     setLive
   ), []);
 
+  const saveWatch = (next) => {
+    setWatch(next);
+    fetch('/api/user', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ watchlist: next }) }).catch(() => {});
+  };
+
   const addWatch = (code, name) => {
     setWatch((prev) => {
       if (prev.some((x) => x.code === code)) return prev;
       const next = [...prev, { code, name }];
-      localStorage.setItem('watchlist', JSON.stringify(next));
+      fetch('/api/user', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ watchlist: next }) }).catch(() => {});
       return next;
     });
   };
@@ -96,10 +95,27 @@ export default function App() {
   const removeWatch = (code) => {
     setWatch((prev) => {
       const next = prev.filter((x) => x.code !== code);
-      localStorage.setItem('watchlist', JSON.stringify(next));
+      fetch('/api/user', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ watchlist: next }) }).catch(() => {});
       return next;
     });
   };
+
+  // 启动：服务端加载自选；服务端为空且本机 localStorage 有旧数据 → 迁移上传
+  useEffect(() => {
+    fetch('/api/user').then((r) => r.json()).then((u) => {
+      if (Array.isArray(u.watchlist) && u.watchlist.length) {
+        setWatch(u.watchlist);
+      } else {
+        try {
+          const local = JSON.parse(localStorage.getItem('watchlist') || '[]');
+          if (Array.isArray(local) && local.length) {
+            setWatch(local);
+            fetch('/api/user', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ watchlist: local }) }).catch(() => {});
+          }
+        } catch { /* 忽略 */ }
+      }
+    }).catch(() => {});
+  }, []);
 
   const badgeOf = (key) => {
     if (key === 'zt') return tick?.ztCount || null;

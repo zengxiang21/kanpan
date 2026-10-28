@@ -10,6 +10,7 @@ import { historyState, getKline } from './history.js';
 import { buildReview, saveReviewIfNeeded, latestSavedReview, buildPlans, reviewDates, reviewByDate } from './review.js';
 import { runBacktest } from './backtest.js';
 import { peersAnalysis } from './peers.js';
+import { getUser, saveUser } from './userstore.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const PORT = process.env.PORT || 8000;
@@ -99,6 +100,16 @@ app.get('/api/peers', (req, res) => {
   const code = String(req.query.code || '').trim();
   if (!/^[0-9]{6}$/.test(code)) return res.status(400).json({ error: 'bad code' });
   res.json(peersAnalysis(code, state.marketSweep, state.pools, state.tick));
+});
+
+// 用户数据：自选/计划/日志（跨设备共享）
+app.get('/api/user', (req, res) => res.json(getUser()));
+app.post('/api/user', (req, res) => {
+  try {
+    res.json(saveUser(req.body || {}));
+  } catch (e) {
+    res.status(400).json({ error: e.message });
+  }
 });
 
 // 业绩预告（即将披露 + 近期已披露，含超预期判断）
