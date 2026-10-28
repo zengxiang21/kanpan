@@ -29,6 +29,12 @@ function broadcast(type, payload) {
 }
 
 // ---------- API ----------
+app.get('/api/debug', (req, res) => {
+  const handles = {};
+  for (const h of process._getActiveHandles()) handles[h.constructor.name] = (handles[h.constructor.name] || 0) + 1;
+  res.json({ handles, memoryMB: Math.round(process.memoryUsage().rss / 1e6), stats: state.stats || null, clients: clients.size });
+});
+
 app.get('/api/health', (req, res) => res.json({ ok: true, updatedAt: state.updatedAt, tradingDay: state.tradingDay, sources: sourceStatus() }));
 
 app.get('/api/snapshot', (req, res) =>

@@ -1,5 +1,9 @@
 // 数据源层：东财(主) + 新浪/腾讯(备) 三源容灾，带熔断与自动恢复
 // 东财 push2 被风控临时封禁时自动切换备源，每 10 分钟探测一次恢复情况
+// 连接池治理：大池+短保活，杜绝 CLOSE_WAIT 死连接堆积导致的全部请求挂起
+import { Agent, setGlobalDispatcher } from 'undici';
+setGlobalDispatcher(new Agent({ connections: 256, pipelining: 1, keepAliveTimeout: 4000, keepAliveMaxTimeout: 8000, headersTimeout: 12000, bodyTimeout: 12000 }));
+
 const HEADERS_EM = {
   'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0 Safari/537.36',
   Referer: 'https://quote.eastmoney.com/',

@@ -17,6 +17,7 @@ const DATA_DIR = path.join(__dirname, '..', 'data');
 const DAILY_FILE = path.join(DATA_DIR, 'daily.json');
 
 export const state = {
+  stats: { tickRuns: 0, lastTickErr: null, lastTickAt: null, bootAt: Date.now() },
   tradingDay: null,
   tick: null,
   pools: { zt: [], zb: [], dt: [], prevZt: [], prevDate: null },
@@ -219,6 +220,7 @@ function computeJinji(pools) {
 
 // ---------- 情绪快照 ----------
 export async function refreshTick() {
+  state.stats.tickRuns++;
   const [idxRes, gainRes, vrRes, amtRes] = await Promise.all([
     getIndices(),
     getRank('f3'),
@@ -393,9 +395,10 @@ export function startScheduler(broadcast) {
     try {
       await refreshTick();
       if (!poolsLoaded) await refreshPools();
+      state.stats.lastTickAt = Date.now();
       broadcast('tick', state.tick);
     } catch (e) {
-      console.error('[tick]', e.message);
+      console.error('[tick]', e.message); state.stats.lastTickErr = e.message;
     } finally {
       tickBusy = false;
     }
