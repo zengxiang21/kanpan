@@ -3,10 +3,16 @@ import { useEffect, useState } from 'react';
 import { fmtPrice, fmtPct, pctCls, fmtAmount, fmtCap } from '../lib/format.js';
 import MinuteChart from './MinuteChart.jsx';
 import CandleChart from './CandleChart.jsx';
+import { fmtPct as fPct } from '../lib/format.js';
 
 export default function StockDetail({ code, name, onBack, onWatch }) {
   const [q, setQ] = useState(null);
+  const [peers, setPeers] = useState(null);
   const [tab, setTab] = useState('minute');
+
+  useEffect(() => {
+    fetch('/api/peers?code=' + code).then((r) => r.json()).then((d) => !d.error && setPeers(d)).catch(() => {});
+  }, [code]);
 
   useEffect(() => {
     let stop = false;
@@ -51,6 +57,28 @@ export default function StockDetail({ code, name, onBack, onWatch }) {
         </div>
         {tab === 'minute' ? <MinuteChart code={code} name={q?.name || name} /> : <CandleChart code={code} name={q?.name || name} />}
       </div>
+
+      {peers && (
+        <div className="panel">
+          <h3>板块内对比 · {peers.industry}（第 {peers.rank}/{peers.total} 名 · 板块涨停 {peers.limitUps} 家）</h3>
+          <div className="plan-note">{peers.evaluation?.map((x, i) => <div key={i}>{i === 0 ? '' : '· '}{x}</div>)}</div>
+          <table className="tbl compact">
+            <thead><tr><th>板块内排名</th><th>名称</th><th>涨幅</th><th>连板</th><th>首封/封单</th></tr></thead>
+            <tbody>
+              {peers.top.map((t) => (
+                <tr key={t.code} className={t.isMe ? 'row-up' : ''}>
+                  <td className="muted">{peers.top.findIndex((x) => x.code === t.code) + 1}</td>
+                  <td className="name">{t.name}<small>{t.code}</small>{t.isMe && <b> ←本票</b>}</td>
+                  <td className={t.pct > 0 ? 'up' : t.pct < 0 ? 'down' : ''}>{fPct(t.pct)}</td>
+                  <td>{t.lianban ? t.lianban + '板' : '-'}</td>
+                  <td>{t.firstSeal ? t.firstSeal.slice(0, 5) + '/' + Math.round((t.sealFund || 0) / 1e8 * 100) / 100 + '亿' : '-'}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+          <div className="hint">只做板块前 2 名；排名第 3 以后的跟风票溢价最差</div>
+        </div>
+      )}
     </div>
   );
 }

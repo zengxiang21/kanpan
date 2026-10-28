@@ -9,6 +9,7 @@ import { scanAll, reflowScan, auctionScan } from './scan.js';
 import { historyState, getKline } from './history.js';
 import { buildReview, saveReviewIfNeeded, latestSavedReview, buildPlans, reviewDates, reviewByDate } from './review.js';
 import { runBacktest } from './backtest.js';
+import { peersAnalysis } from './peers.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const PORT = process.env.PORT || 8000;
@@ -91,6 +92,13 @@ app.get('/api/auction', async (req, res) => {
     });
   }
   res.json(result);
+});
+
+// 板块内对比：同行业排名 + 能不能买评价
+app.get('/api/peers', (req, res) => {
+  const code = String(req.query.code || '').trim();
+  if (!/^[0-9]{6}$/.test(code)) return res.status(400).json({ error: 'bad code' });
+  res.json(peersAnalysis(code, state.marketSweep, state.pools, state.tick));
 });
 
 // 业绩预告（即将披露 + 近期已披露，含超预期判断）

@@ -371,16 +371,14 @@ export default function KnowledgePage() {
       {tab === 'quotes' && (
         <div className="panel">
           <h3>心法语录（网络流传整理 · 每天开盘前读一遍）</h3>
-          <table className="tbl compact">
-            <tbody>
-              {QUOTES.map((r, i) => (
-                <tr key={i}>
-                  <td className="name" style={{ width: 100 }}>{r[0]}</td>
-                  <td style={{ fontSize: 13.5, lineHeight: 1.7 }}>{r[1]}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+          <div className="quote-grid">
+            {QUOTES.map((r, i) => (
+              <div className="quote-card" key={i}>
+                <div className="quote-who">{r[0]}</div>
+                <div className="quote-text">{r[1]}</div>
+              </div>
+            ))}
+          </div>
           <div className="hint">语录为流传版本整理，出处归属仅供参考；真正的"心法"是自己的交易日志——用交易日志页每天记录对错，三个月后你自己的心法比任何语录都值钱。</div>
         </div>
       )}
