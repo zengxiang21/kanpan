@@ -201,6 +201,7 @@ const BOOKS = [
 const ARTICLES = [
   ['短线王牌：情绪流龙头战法与打板（雪球长文）', 'https://xueqiu.com/1899529380/306482390', '涵盖龙头、补涨、切换、情绪周期核心内容'],
   ['情绪龙头战法：情绪周期的思考与操作节点（雪球）', 'https://xueqiu.com/k?q=%E6%83%85%E7%BB%AA%E5%91%A8%E6%9C%9F%20%E6%93%8D%E4%BD%9C%E8%8A%82%E7%82%B9', '周期阶段与节点操作'],
+  ['长文 342279758（雪球 · 用户推荐）', 'https://xueqiu.com/1899529380/342279758', '实战长文 · 支持站内阅读'],
   ['龙头战法与空间板（知乎搜索）', 'https://www.zhihu.com/search?type=content&q=%E7%A9%BA%E9%97%B4%E6%9D%BF%20%E9%BE%99%E5%A4%B4%E6%88%98%E6%B3%95', '空间板与情绪风向标'],
   ['弱转强实战拆解（知乎搜索）', 'https://www.zhihu.com/search?type=content&q=%E5%BC%B1%E8%BD%AC%E5%BC%BA%20%E7%AB%9E%E4%BB%B7', '分歧转一致的买点案例'],
   ['断板回流与二波（知乎搜索）', 'https://www.zhihu.com/search?type=content&q=%E6%96%AD%E6%9D%BF%20%E5%9B%9E%E6%B5%81%20%E4%BA%8C%E6%B3%A2', '回流战法案例'],
