@@ -10,6 +10,7 @@ function PlanCard({ plan, onOpenStock }) {
       <div className="plan-head">
         <span className="name-link" onClick={() => onOpenStock(plan.code, plan.name)}>
           <b>{plan.name}</b><small>{plan.code}</small>
+          {plan.from && <span className="lb lb-high">{plan.from}</span>}
         </span>
         <span className="lb lb-high">{plan.role}</span>
         <span className="plan-mode">{plan.mode}</span>
@@ -51,7 +52,8 @@ export default function ReviewPage({ tick, watch, onOpenStock }) {
   const [review, setReview] = useState(null);
   const [plans, setPlans] = useState([]);
   const [dates, setDates] = useState([]);
-  const [viewDate, setViewDate] = useState(''); // 空 = 实时
+  const [viewDate, setViewDate] = useState('');
+  const [planMode, setPlanMode] = useState('auto'); // auto=系统推荐 manual=自选票 // 空 = 实时
   const [picked, setPicked] = useState([]);
   const [manual, setManual] = useState('');
   const flash = useFlash(review?.generatedAt, 60000);
@@ -78,9 +80,12 @@ export default function ReviewPage({ tick, watch, onOpenStock }) {
   const codes = picked.join(',');
   useEffect(() => {
     if (picked.length) fetch('/api/user', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ picks: picked }) }).catch(() => {});
-    if (!codes) { setPlans([]); return; }
-    api('plan?codes=' + codes).then((d) => Array.isArray(d) && setPlans(d)).catch(() => {});
   }, [codes]);
+  useEffect(() => {
+    if (planMode === 'manual' && !codes) { setPlans([]); return; }
+    const url = planMode === 'manual' ? 'plan?codes=' + codes : 'plan';
+    api(url).then((d) => d && Array.isArray(d.plans) && setPlans(d.plans)).catch(() => {});
+  }, [planMode, codes]);
 
   const addPick = (code) => {
     if (!/^\d{6}$/.test(code) || picked.includes(code) || picked.length >= 3) return;
@@ -173,7 +178,11 @@ export default function ReviewPage({ tick, watch, onOpenStock }) {
       )}
 
       <div className="panel">
-        <h3>交易计划 · 关注股作战卡（最多 3 只 · 9:15 竞价后照表执行）</h3>
+        <h3>
+          交易计划 · 关注股作战卡（最多 3 只 · 9:15 竞价后照表执行）
+          <button className={`mini ${planMode === 'auto' ? 'active-mini' : ''}`} onClick={() => { setPlanMode('auto'); setPicked([]); }}>🎯 系统推荐</button>
+          <button className={`mini ${planMode === 'manual' ? 'active-mini' : ''}`} onClick={() => setPlanMode('manual')}>从自选挑</button>
+        </h3>
         <div className="plan-picker">
           {(watch || []).map((w) => (
             <button key={w.code} className={`mini ${picked.includes(w.code) ? 'active-mini' : ''}`} onClick={() => picked.includes(w.code) ? removePick(w.code) : addPick(w.code)}>
@@ -190,10 +199,17 @@ export default function ReviewPage({ tick, watch, onOpenStock }) {
         <div className="hint" style={{ margin: '6px 0 10px' }}>
           选票思路不必选最强的：情绪【{review?.emotion?.cycleStage || '…'}】阶段，主线题材的低位首板是确定性较高的<span className="up">套利板</span>；
           龙头适合低吸/锁仓，跟风只做弱转强。每张卡按"竞价情景 → 检查点 → 止损止盈"执行。
+          {planMode === 'auto' ? ' 系统推荐优先级：空间板龙头 → 回流预期 → 底部放量 → 缩量回踩。' : ''}
         </div>
         <div className="row2" style={{ marginTop: 10 }}>
           {plans.map((p) => <PlanCard key={p.code} plan={p} onOpenStock={onOpenStock} />)}
-          {picked.length === 0 && <div className="empty">从自选股点选或输入代码（≤3 只），生成"竞价情景 + 检查点 + 止损止盈"作战卡</div>}
+          {plans.length === 0 && (
+            <div className="empty">
+              {planMode === 'auto'
+                ? '系统推荐生成中…（来源：空间板龙头 / 回流预期 / 底部放量 / 缩量回踩，自动去重取 3 只）'
+                : '从自选股点选或输入代码（≤3 只），生成"竞价情景 + 检查点 + 止损止盈"作战卡'}
+            </div>
+          )}
         </div>
       </div>
     </div>
