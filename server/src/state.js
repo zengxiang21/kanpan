@@ -423,11 +423,18 @@ export function startScheduler(broadcast) {
   async function sweepOnce() {
     if (sweepBusy) return;
     if (state.marketSweep && Date.now() - state.marketSweep.updatedAt < phaseIntervals().sweep - 500) return;
+    if (Date.now() - lastSweepTry < 110_000) return;
+    lastSweepTry = Date.now();
     sweepBusy = true;
-    if (!historyKicked && state.marketSweep) {
-      historyKicked = true;
-      ensureHistoryStarted(() => { const fromMap = Object.keys(industryState.map || {}); if (fromMap.length > 1000) return fromMap; return state.marketSweep ? state.marketSweep.rows.map((r) => r.code) : null; });
-      ensureIndustryMapStarted();
+    try {
+      await runSweep();
+      if (!historyKicked && state.marketSweep) {
+        historyKicked = true;
+        ensureHistoryStarted(() => { const fromMap = Object.keys(industryState.map || {}); if (fromMap.length > 1000) return fromMap; return state.marketSweep ? state.marketSweep.rows.map((r) => r.code) : null; });
+        ensureIndustryMapStarted();
+      }
+    } finally {
+      sweepBusy = false;
     }
   }
 
