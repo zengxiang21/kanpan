@@ -2,7 +2,7 @@
 import { spawn } from 'node:child_process';
 
 function start() {
-  const p = spawn(process.execPath, ['server/src/index.js'], { stdio: 'inherit' });
+  const p = spawn(process.execPath, ['server/src/index.js'], { stdio: 'inherit', env: { ...process.env, UV_THREADPOOL_SIZE: '64' } });
   const ts = () => new Date().toLocaleTimeString('zh-CN', { hour12: false });
   p.on('exit', (code) => {
     console.error(`[${ts()}] [supervisor] 服务退出(code=${code}) → 3 秒后重启`);

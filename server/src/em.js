@@ -2,7 +2,7 @@
 // 东财 push2 被风控临时封禁时自动切换备源，每 10 分钟探测一次恢复情况
 // 连接池治理：大池+短保活，杜绝 CLOSE_WAIT 死连接堆积导致的全部请求挂起
 import { Agent, setGlobalDispatcher } from 'undici';
-setGlobalDispatcher(new Agent({ connections: 256, pipelining: 1, keepAliveTimeout: 4000, keepAliveMaxTimeout: 8000, headersTimeout: 12000, bodyTimeout: 12000 }));
+setGlobalDispatcher(new Agent({ connections: 256, pipelining: 1, keepAliveTimeout: 30_000, keepAliveMaxTimeout: 60_000, headersTimeout: 12000, bodyTimeout: 12000 }));
 
 const HEADERS_EM = {
   'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0 Safari/537.36',
@@ -220,6 +220,7 @@ export async function getQuotes(codes) {
 
 // ================= 全市场扫描（新浪分页，约 70 页；供涨跌家数与后续形态扫描用） =================
 export async function sinaFullSweep(onProgress) {
+  const DEADLINE = process.hrtime.bigint() + 90_000_000_000n; // 总时限：超时返回已抓部分（部分数据也够用）
   const countTxt = await fetchText(
     'https://vip.stock.finance.sina.com.cn/quotes_service/api/json_v2.php/Market_Center.getHQNodeStockCount?node=hs_a',
     HEADERS_SINA
@@ -250,6 +251,7 @@ export async function sinaFullSweep(onProgress) {
       });
     }
     onProgress?.(p, pages);
+    if (process.hrtime.bigint() > DEADLINE) { console.warn('[sweep] 90秒时限到，返回部分数据 ' + rows.length + ' 只'); break; }
     await new Promise((res) => setTimeout(res, 120));
   }
   let advancers = 0, decliners = 0, flat = 0, amount = 0;

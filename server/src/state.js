@@ -4,7 +4,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { getIndices, getRank, getPool, sinaFullSweep, sourceStatus } from './em.js';
 import { ensureHistoryStarted } from './history.js';
-import { loadIndustryMap, ensureIndustryMapStarted } from './industries.js';
+import { loadIndustryMap, ensureIndustryMapStarted, industryState } from './industries.js';
 import { updateAuctionCloses, saveAuctionSnapshot, getAuctionByDate } from './auctionstore.js';
 import { auctionScan } from './scan.js';
 
@@ -419,13 +419,14 @@ export function startScheduler(broadcast) {
   }
 
   let sweepBusy = false;
+  let lastSweepTry = 0;
   async function sweepOnce() {
     if (sweepBusy) return;
     if (state.marketSweep && Date.now() - state.marketSweep.updatedAt < phaseIntervals().sweep - 500) return;
     sweepBusy = true;
     if (!historyKicked && state.marketSweep) {
       historyKicked = true;
-      ensureHistoryStarted(() => (state.marketSweep ? state.marketSweep.rows.map((r) => r.code) : null));
+      ensureHistoryStarted(() => { const fromMap = Object.keys(industryState.map || {}); if (fromMap.length > 1000) return fromMap; return state.marketSweep ? state.marketSweep.rows.map((r) => r.code) : null; });
       ensureIndustryMapStarted();
     }
   }
@@ -478,7 +479,7 @@ export function startScheduler(broadcast) {
   setInterval(() => {
     const phase = marketPhase();
     if (phase === 'closed') { staleStrikes = 0; return; }
-    const age = state.tick ? Date.now() - state.tick.updatedAt : Infinity;
+    const age = (state._lastTickWall === state.tick?.updatedAt && state._lastTickSeenAt != null) ? 999999999 : (state.tick ? Date.now() - state.tick.updatedAt : Infinity);
     if (age > 180_000) {
       staleStrikes++;
       console.error(`[watchdog] 数据停滞 ${Math.round(age / 1000)}s (${staleStrikes}/3) → 强制重刷`);
@@ -490,5 +491,7 @@ export function startScheduler(broadcast) {
     } else {
       staleStrikes = 0;
     }
+    state._lastTickWall = state.tick?.updatedAt;
+    state._lastTickSeenAt = Date.now();
   }, 90_000);
 }
