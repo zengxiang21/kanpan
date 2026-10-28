@@ -1,5 +1,5 @@
-// 数据访问抽象：本地走 /api，GitHub Pages 云端走 /cloud/data.json（Actions 每日生成）
-export const CLOUD = !/^(127\.0\.0\.1|localhost|192\.168\.)/.test(location.hostname);
+// 数据访问抽象：本地/Tailscale 走 /api 实时；GitHub Pages 走 /cloud/data.json（Actions 或本机定时生成）
+export const CLOUD = location.hostname.endsWith('.github.io');
 
 let cloudCache = null;
 export async function api(path) {

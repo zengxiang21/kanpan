@@ -238,6 +238,8 @@ setInterval(() => {
 // ---------- 静态托管前端构建产物 ----------
 const webDist = path.join(__dirname, '..', '..', 'web', 'dist');
 app.use(express.static(webDist));
+// 云端数据文件兜底
+app.use('/cloud', express.static(path.join(__dirname, '..', '..', 'docs', 'cloud')));
 app.get('*', (req, res, next) => {
   if (req.path.startsWith('/api/')) return next();
   res.sendFile(path.join(webDist, 'index.html'));
