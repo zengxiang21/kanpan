@@ -3,7 +3,7 @@ import express from 'express';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { state, startScheduler, marketPhase, runSweep } from './state.js';
-import { getQuotes, getNews, getGlobal, getMinute, getUSStocks, getSentiment, getSectorBoard, getLHBCodes, sourceStatus } from './em.js';
+import { getQuotes, getNews, getGlobal, getMinute, getUSStocks, getSentiment, getSectorBoard, getLHBCodes, getEarningsForecast, getArticle, sourceStatus } from './em.js';
 import { saveAuctionSnapshot, getAuctionByDate, listAuctionDates, updateAuctionCloses } from './auctionstore.js';
 import { scanAll, reflowScan, auctionScan } from './scan.js';
 import { historyState, getKline } from './history.js';
@@ -83,7 +83,7 @@ app.get('/api/auction', async (req, res) => {
       console.log('[lhb] 昨日龙虎榜', lhbDate, '·', lhbCache.codes.length, '只');
     } catch { /* 失败用空集，下轮重试 */ }
   }
-  const result = auctionScan(state.marketSweep, state.pools, phase, { lhbCodes: new Set(lhbCache.codes), lhbDate });
+  const result = await auctionScan(state.marketSweep, state.pools, phase, { lhbCodes: new Set(lhbCache.codes), lhbDate });
   if ((phase === 'auction_end' || phase === 'open') && state.tradingDay) {
     saveAuctionSnapshot(state.tradingDay, {
       date: state.tradingDay, savedAt: Date.now(), mode: result.mode,
@@ -91,6 +91,35 @@ app.get('/api/auction', async (req, res) => {
     });
   }
   res.json(result);
+});
+
+// 业绩预告（即将披露 + 近期已披露，含超预期判断）
+app.get('/api/earnings', async (req, res) => {
+  try {
+    res.json(await getEarningsForecast(parseInt(req.query.days, 10) || 3));
+  } catch (e) {
+    res.status(502).json({ error: e.message });
+  }
+});
+
+// 文章正文代理（白名单）
+app.get('/api/article', async (req, res) => {
+  try {
+    const html = await getArticle(String(req.query.url || ''));
+    res.type('text/plain').send(html);
+  } catch (e) {
+    res.status(502).json({ error: e.message });
+  }
+});
+
+// 龙虎榜代码列表（昨日）
+app.get('/api/lhb', async (req, res) => {
+  const date = state.pools.prevDate || state.tradingDay;
+  try {
+    res.json({ date, codes: await getLHBCodes(date) });
+  } catch (e) {
+    res.status(502).json({ error: e.message });
+  }
 });
 
 // 竞价存档日期列表

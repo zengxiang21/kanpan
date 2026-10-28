@@ -231,8 +231,11 @@ export function reflowScan(sweepRows, pools) {
 // mode: auction=9:15-9:25 真实竞价数据；preview=非竞价时段（上一交易日收盘快照，仅供预演）
 // 只选有涨停基因的超短票（昨日涨停 或 近10日强势）；输出含方向聚合与龙头排序字段
 import { industryOf } from './industries.js';
+import { getEarningsForecast } from './em.js';
 
-export function auctionScan(sweepRows, pools, phase, extras = {}) {
+export async function auctionScan(sweepRows, pools, phase, extras = {}) {
+  let earnMap = new Map();
+  try { const earn = await getEarningsForecast(3); for (const e of earn) earnMap.set(e.code, e); } catch { /* 可选数据 */ }
   const mode = phase === 'auction' || phase === 'auction_end' ? 'auction' : 'preview';
   const empty = { mode, rows: [], directions: [], note: '', lhbDate: extras.lhbDate || null };
   if (!sweepRows) return { ...empty, note: '等待全市场快照' };

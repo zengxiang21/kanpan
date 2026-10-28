@@ -33,7 +33,7 @@ async function main() {
   let auction;
   try {
     const lhbCodes = new Set(await getLHBCodes(state.pools.prevDate || state.tradingDay).catch(() => []));
-    auction = auctionScan(state.marketSweep, state.pools, phase, { lhbCodes, lhbDate: state.pools.prevDate });
+    auction = await auctionScan(state.marketSweep, state.pools, phase, { lhbCodes, lhbDate: state.pools.prevDate });
   } catch {
     auction = { mode: 'preview', rows: [], directions: [], note: '' };
   }

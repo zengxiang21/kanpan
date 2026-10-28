@@ -117,7 +117,7 @@ export default function AuctionPage({ onWatch, onOpenStock }) {
             <th>{gapLabel}</th>
             {showClose && <th>收盘涨幅</th>}
             {showClose && <th>结果</th>}
-            <th>流通市值</th><th>命中点</th><th></th>
+            <th>流通市值</th><th>业绩</th><th>命中点</th><th></th>
           </tr>
         </thead>
         <tbody>
@@ -150,6 +150,7 @@ export default function AuctionPage({ onWatch, onOpenStock }) {
                 </td>
               )}
               <td>{fmtCap(s.floatCap)}</td>
+              <td>{s.earn ? <span className={`${s.earn.superExpect ? 'lb lb-high' : 'dir-tag'}`} title={s.earn.content || ''}>{s.earn.type}{s.earn.add != null ? `+${s.earn.add}%` : ''}</span> : '-'}</td>
               <td className="muted reasons-cell">{(s.reasons || []).join(' · ')}</td>
               <td><button className="mini" onClick={() => onWatch(s.code, s.name)}>+自选</button></td>
             </tr>

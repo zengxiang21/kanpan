@@ -444,7 +444,7 @@ export function startScheduler(broadcast) {
       // 9:25-9:30 竞价定稿：无论页面是否打开，自动落盘当日竞价雷达
       const ph = marketPhase();
       if (ph === 'auction_end' && state.tradingDay && !auctionSavedToday(state.tradingDay) && state.marketSweep) {
-        const a = auctionScan(state.marketSweep, state.pools, ph, { lhbCodes: new Set() });
+        const a = await auctionScan(state.marketSweep, state.pools, ph, { lhbCodes: new Set() });
         saveAuctionSnapshot(state.tradingDay, {
           date: state.tradingDay, savedAt: Date.now(), mode: a.mode,
           rows: a.rows.map((r) => ({ ...r })), directions: a.directions,

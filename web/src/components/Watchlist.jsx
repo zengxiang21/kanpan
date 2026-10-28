@@ -6,6 +6,13 @@ export default function Watchlist({ watch, onRemove, onWatch, onOpenStock }) {
   const [rows, setRows] = useState([]);
   const [input, setInput] = useState('');
   const [expanded, setExpanded] = useState(null);
+  const [lhb, setLhb] = useState(new Set());
+  const [earn, setEarn] = useState(new Map());
+  useEffect(() => {
+    api ? null : null;
+    fetch('/api/lhb').then((r) => r.json()).then((d) => setLhb(new Set(d.codes || []))).catch(() => {});
+    fetch('/api/earnings?days=3').then((r) => r.json()).then((d) => { const m = new Map(); (d || []).forEach((x) => m.set(x.code, x)); setEarn(m); }).catch(() => {});
+  }, []);
   const codes = watch.map((x) => x.code).join(',');
   const names = useRef(new Map(watch.map((x) => [x.code, x.name])));
 
