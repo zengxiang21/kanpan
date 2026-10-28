@@ -15,6 +15,7 @@ import { getUser, saveUser } from './userstore.js';
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const PORT = process.env.PORT || 8000;
 const app = express();
+app.use(express.json());
 
 // 未捕获异常兜底：打印并存活，绝不静默死亡
 process.on('uncaughtException', (e) => console.error(`[${new Date().toLocaleTimeString('zh-CN', { hour12: false })}] [uncaught]`, e.message, (e.stack || '').split('\n')[1] || ''));
