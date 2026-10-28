@@ -164,6 +164,7 @@ function row(s, score, volTimes, reasons, breakdown) {
     code: s.code, name: s.name, price: s.price, pct: s.pct,
     volTimes: volTimes != null ? +volTimes.toFixed(2) : null,
     turnover: s.turnover, floatCap: s.floatCap, industry: s.industry,
+    direction: industryOf(s.code) || s.industry || null,
     score, breakdown: breakdown || [], reasons,
   };
 }
