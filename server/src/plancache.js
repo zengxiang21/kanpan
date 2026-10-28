@@ -60,7 +60,7 @@ export async function refreshPlanCache(state) {
   try {
     const result = await Promise.race([
       buildAutoPlans(state),
-      new Promise((res) => setTimeout(() => res(null), 15_000)),
+      new Promise((res) => setTimeout(() => res(null), 35_000)),
     ]);
     if (result) planCache = { ...result, at: Date.now() };
   } catch (e) {
