@@ -73,6 +73,8 @@ app.get('/api/scan', (req, res) => {
 
 // 竞价雷达（9:15-9:25 真实竞价；其余为预演；9:25 定稿存档，收盘回填复盘）
 const lhbCache = { date: null, codes: [] };
+const auctionCache = { at: 0, data: null };
+const earnCache = { at: 0, data: null };
 app.get('/api/auction', async (req, res) => {
   const date = String(req.query.date || '');
   if (/^\d{8}$/.test(date)) {
@@ -87,7 +89,11 @@ app.get('/api/auction', async (req, res) => {
       console.log('[lhb] 昨日龙虎榜', lhbDate, '·', lhbCache.codes.length, '只');
     } catch { /* 失败用空集，下轮重试 */ }
   }
-  const result = await auctionScan(state.marketSweep, state.pools, phase, { lhbCodes: new Set(lhbCache.codes), lhbDate });
+  if (Date.now() - auctionCache.at > 10_000 || !auctionCache.data) {
+    auctionCache.data = await auctionScan(state.marketSweep, state.pools, phase, { lhbCodes: new Set(lhbCache.codes), lhbDate }).catch(() => auctionCache.data);
+    auctionCache.at = Date.now();
+  }
+  const result = auctionCache.data;
   if ((phase === 'auction_end' || phase === 'open') && state.tradingDay) {
     saveAuctionSnapshot(state.tradingDay, {
       date: state.tradingDay, savedAt: Date.now(), mode: result.mode,
@@ -117,7 +123,11 @@ app.post('/api/user', (req, res) => {
 // 业绩预告（即将披露 + 近期已披露，含超预期判断）
 app.get('/api/earnings', async (req, res) => {
   try {
-    res.json(await getEarningsForecast(parseInt(req.query.days, 10) || 3));
+    if (Date.now() - earnCache.at > 10 * 60_000 || !earnCache.data) {
+      earnCache.data = await getEarningsForecast(parseInt(req.query.days, 10) || 3).catch(() => earnCache.data || []);
+      earnCache.at = Date.now();
+    }
+    res.json(earnCache.data);
   } catch (e) {
     res.status(502).json({ error: e.message });
   }
@@ -204,7 +214,11 @@ app.get('/api/plan', async (req, res) => {
     const scan = scanAll(state.marketSweep);
     const reflow = reflowScan(state.marketSweep, state.pools);
     // 竞价方向强弱：方向榜排名 → 推荐时方向加成
-    const auction = await auctionScan(state.marketSweep, state.pools, phase, {}).catch(() => ({ directions: [] }));
+    if (Date.now() - auctionCache.at > 10_000 || !auctionCache.data) {
+      auctionCache.data = await auctionScan(state.marketSweep, state.pools, phase, { lhbCodes: new Set(lhbCache.codes), lhbDate }).catch(() => auctionCache.data);
+      auctionCache.at = Date.now();
+    }
+    const auction = auctionCache.data || { directions: [] };
     const dirRank = new Map((auction.directions || []).map((d, i) => [d.direction, { rank: i + 1, strength: d.strength, count: d.count }]));
     const dirBoost = (direction) => {
       const r = dirRank.get(direction);

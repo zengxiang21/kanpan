@@ -82,9 +82,15 @@ export default function ReviewPage({ tick, watch, onOpenStock }) {
     if (picked.length) fetch('/api/user', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ picks: picked }) }).catch(() => {});
   }, [codes]);
   useEffect(() => {
-    if (planMode === 'manual' && !codes) { setPlans([]); return; }
-    const url = planMode === 'manual' ? 'plan?codes=' + codes : 'plan';
-    api(url).then((d) => d && Array.isArray(d.plans) && setPlans(d.plans)).catch(() => {});
+    const load = () => {
+      if (planMode === 'manual' && !codes) { setPlans([]); return; }
+      const url = planMode === 'manual' ? 'plan?codes=' + codes : 'plan';
+      api(url).then((d) => d && Array.isArray(d.plans) && setPlans(d.plans)).catch(() => {});
+    };
+    load();
+    if (CLOUD) return;
+    const t = setInterval(load, 30_000);
+    return () => clearInterval(t);
   }, [planMode, codes]);
 
   const addPick = (code) => {
