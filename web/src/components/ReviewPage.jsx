@@ -185,7 +185,7 @@ export default function ReviewPage({ tick, watch, onOpenStock }) {
 
       <div className="panel">
         <h3>
-          交易计划 · 关注股作战卡（最多 3 只 · 9:15 竞价后照表执行）
+          交易计划 · 关注股作战卡（系统推荐 6 只 · 9:15 竞价后照表执行）
           <button className={`mini ${planMode === 'auto' ? 'active-mini' : ''}`} onClick={() => { setPlanMode('auto'); setPicked([]); }}>🎯 系统推荐</button>
           <button className={`mini ${planMode === 'manual' ? 'active-mini' : ''}`} onClick={() => setPlanMode('manual')}>从自选挑</button>
         </h3>

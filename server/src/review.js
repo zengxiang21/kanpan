@@ -190,7 +190,7 @@ function modeFor(stage, lianban, isTheme, strongDay) {
 }
 
 export async function buildPlans(codes, state) {
-  const rows = await getQuotes(codes).catch(() => []);
+  const rows = await getQuotes(codes.slice(0, 6)).catch(() => []);
   const byCode = new Map(rows.map((r) => [r.code, r]));
   const prevZtMap = new Map((state.pools.prevZt || []).map((z) => [z.code, z.lianban || 1]));
   const today = new Date().toLocaleDateString('sv-SE', { timeZone: 'Asia/Shanghai' });
@@ -209,7 +209,7 @@ export async function buildPlans(codes, state) {
   const posByEnv = { 重仓出击: '单票 3 成', 轻仓试错: '单票 2 成', 只看低吸: '单票 1 成', 空仓观望: '0（空仓）' };
 
   const out = [];
-  for (const code of codes) {
+  for (const code of codes.slice(0, 6)) {
     const q = byCode.get(code);
     const name = q?.name || code;
     const isST = /ST/i.test(name);
