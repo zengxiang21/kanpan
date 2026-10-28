@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { fmtPrice, fmtPct, pctCls, fmtAmount, fmtCap } from '../lib/format.js';
 
 function PoolTable({ rows, onWatch, watchCodes, onOpenStock }) {
@@ -18,7 +18,7 @@ function PoolTable({ rows, onWatch, watchCodes, onOpenStock }) {
         {sorted.map((s) => (
           <tr key={s.code}>
             <td><span className={`lb ${s.lianban >= 3 ? 'lb-high' : ''}`}>{s.lianban || 1}板</span></td>
-            <td className="name"><span className="name-link" onClick={() => onOpenStock(s.code, s.name)}>{s.name}<small>{s.code}</small></span></td>
+            <td className="name"><span className="name-link" onClick={() => onOpenStock(s.code, s.name)}>{s.name}{lhb.has(s.code) ? ' 🐉' : ''}<small>{s.code}</small></span></td>
             <td className={pctCls(s.pct)}>{fmtPrice(s.price)}</td>
             <td className={pctCls(s.pct)}>{fmtPct(s.pct)}</td>
             <td>{fmtAmount(s.sealFund)}</td>
@@ -85,7 +85,7 @@ export default function ZtPool({ tick, pools, onWatch, onOpenStock }) {
               <div className="tianti-stocks">
                 {stocks.map((s) => (
                   <button className="stock-chip" key={s.code} title={`${s.industry || ''} · 首封 ${s.firstSeal || '-'} · 炸板${s.zhaCount}次 · 点击看详情`} onClick={() => onOpenStock(s.code, s.name)}>
-                    <b>{s.name}</b>
+                    <b>{s.name}{lhb.has(s.code) ? ' 🐉' : ''}</b>
                     <span className={pctCls(s.pct)}>{fmtPct(s.pct)}{s.firstSeal && s.firstSeal >= '14:00' ? ' ·尾盘' : s.firstSeal && s.firstSeal >= '13:00' ? ' ·午后' : ''}</span>
                     <small>{s.firstSeal || '-'}{s.zhaCount > 0 ? ` ·炸${s.zhaCount}` : ''}</small>
                   </button>

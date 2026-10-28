@@ -5,6 +5,7 @@ import { api, CLOUD } from '../lib/api.js';
 
 export default function SectorsPage({ pools }) {
   const [sectors, setSectors] = useState([]);
+  const [openTheme, setOpenTheme] = useState(null);
   const [err, setErr] = useState(null);
   const [at, setAt] = useState(null);
 
@@ -87,10 +88,17 @@ export default function SectorsPage({ pools }) {
         <h3>题材涨停热度（涨停池行业口径 · 只统计已涨停）</h3>
         <div className="tianti-stocks">
           {themes.map((t) => (
-            <div className="us-card" key={t.industry}>
+            <button className="us-card dir-btn" key={t.industry} onClick={() => setOpenTheme(openTheme === t.industry ? null : t.industry)} title="点击展开该题材涨停股">
               <div className="us-head"><b>{t.industry}</b><span className="up bold">{t.count} 家</span></div>
               <div className="muted" style={{ fontSize: 11 }}>最高 {t.lianban}板 · {t.top}</div>
-            </div>
+              {openTheme === t.industry && (
+                <div style={{ marginTop: 6, textAlign: 'left' }}>
+                  {(pools?.zt || []).filter((z) => z.industry === t.industry).map((z) => (
+                    <div key={z.code} style={{ fontSize: 12 }}>{z.lianban > 1 ? z.lianban + '板·' : ''}{z.name} <span className="muted">{z.firstSeal || ''}</span></div>
+                  ))}
+                </div>
+              )}
+            </button>
           ))}
           {themes.length === 0 && <div className="empty">暂无涨停数据</div>}
         </div>

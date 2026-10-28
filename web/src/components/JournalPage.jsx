@@ -21,6 +21,19 @@ export default function JournalPage() {
     localStorage.setItem(KEY, JSON.stringify(list));
   };
 
+  // 对账单文本批量解析（同花顺/券商导出：每行含 日期 代码 名称 买/卖 价格 数量）
+  const importText = () => {
+    const text = prompt('粘贴对账单文本（每行一笔：日期 代码 名称 买/卖 价格 数量，空格分隔）');
+    if (!text) return;
+    const added = [];
+    for (const line of text.split('\n')) {
+      const m = line.trim().match(/(\\d{4}-\\d{2}-\\d{2})[\\s\\t]+(\\d{6})[\\s\\t]+(\\S+)[\\s\\t]+(买|卖)[\\s\\t]+([\\d.]+)[\\s\\t]+(\\d+)/);
+      if (m) added.push({ id: Date.now() + '-' + added.length, date: m[1], code: m[2], name: m[3], dir: m[4], price: +m[5], qty: +m[6], result: '', note: '对账单导入' });
+    }
+    if (added.length) { setEntries([...added, ...entries]); alert('导入 ' + added.length + ' 笔'); }
+    else alert('未解析到记录：请确认每行格式为 日期 代码 名称 买/卖 价格 数量');
+  };
+
   const submit = (e) => {
     e.preventDefault();
     if (!form.code || !form.price) return;
@@ -58,6 +71,7 @@ export default function JournalPage() {
         </select>
         <input placeholder="备注：买点类型/错误原因" value={form.note} onChange={(e) => setForm({ ...form, note: e.target.value })} style={{ flex: 1 }} />
         <button className="mini" type="submit">记录</button>
+        <button className="mini" type="button" onClick={importText}>批量导入对账单</button>
       </form>
 
       <table className="tbl">

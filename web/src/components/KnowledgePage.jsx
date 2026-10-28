@@ -7,7 +7,9 @@ const TABS = [
   { key: 'cases', label: '实战案例' },
   { key: 'hotmoney', label: '游资妖股复盘' },
   { key: 'quotes', label: '心法语录' },
+  { key: 'discipline', label: '交易纪律' },
   { key: 'books', label: '书单文章' },
+  { key: 'read', label: '阅读中' },
 ];
 
 // ---------- 视频课（B站内嵌播放器，点击才加载） ----------
@@ -20,6 +22,10 @@ const VIDEOS = [
   { cat: '打板', title: '集合竞价挂单实操', bv: 'BV1fe28BeE8S', desc: '竞价打板/排单的具体挂单手法' },
   { cat: '复盘', title: '短线复盘：竞价 + 炸板大面股分析', bv: 'BV1ce4y1x7mf', desc: '真实复盘案例：竞价怎么做、炸板大面怎么防' },
   { cat: '复盘', title: '专业复盘工具教学', bv: 'BV1mf1WBFE9q', desc: '系统化复盘流程演示，配合本站收盘复盘页使用' },
+  { cat: '竞价', title: '集合竞价最强公式打板战法（保姆级）', bv: 'BV18CPcz2E5z', desc: '竞价量化打板战法，含选股公式思路' },
+  { cat: '竞价', title: '通达信集合竞价打板技巧实战', bv: 'BV1k92RYEEuk', desc: '竞价实战教程详解' },
+  { cat: '打板', title: '集合竞价就能打板：锁定能连板的强势股', bv: 'BV13i8jzZEqA', desc: '竞价选强势股的实战手法' },
+  { cat: '打板', title: 'A股集合竞价六大要素', bv: 'BV1tx4y1N7fQ', desc: '竞价必懂的六个要素，配合竞价雷达验证' },
 ];
 
 // ---------- 游资风格库（均为公开流传的风格画像，席位常变不列具体席位） ----------
@@ -159,6 +165,14 @@ const SELLS = [
   ['尾盘跳水', '14:30 后跌破分时均价线且收不回', '不留弱势票过夜'],
   ['断板止盈', '连板股次日竞价低于预期（高开 <1%）', '竞价就走，别等冲高'],
 ];
+const DISCIPLINE = [
+  ['仓位纪律', '单票不超 3 成；总仓位按环境评分：≥75 用 8 成、50-75 用 5 成、30-50 用 2 成、<30 空仓', '连板股只做一个，不并存两个高位票'],
+  ['止损纪律', '打板票：炸板回封失败无条件走；半路票：破分时均价线走；低吸票：破预设支撑（MA5/昨涨停价）走', '所有票硬止损 -3%，不等反弹'],
+  ['连亏纪律', '连亏 2 笔当日停手复盘；连亏 3 笔休息一天，只看不做', '复盘必写错误原因：是环境错、选股错还是执行错'],
+  ['妖股末期纪律', '高位妖股仓位按"卖不出"管理；两度停牌核查的票直接拉黑；大股东减持公告=清仓信号', '参考中通客车案例：一字跌停 20 亿封单出逃无门'],
+  ['利润兑现纪律', '浮盈 >10% 至少兑现一半让利润奔跑；竞价高开不及预期（<1%）竞价就走', '卖飞不可耻，坐过山车才可惜'],
+  ['复盘纪律', '每天收盘后必写三行：今日主线/明日预案/今日错误；每周日统计胜率与盈亏比', '没有复盘的超短=赌博'],
+];
 const TERMS = [
   ['空间板', '全市场最高连板高度的那只，情绪风向标'],
   ['卡位', '同题材中率先涨停抢占龙头地位'],
@@ -171,6 +185,13 @@ const TERMS = [
   ['晋级率', '昨日 N 板今日 N+1 板的比例，情绪接力强度'],
 ];
 
+const HM_REFS = [
+  ['赵老哥 · 八年一万倍语录与复盘合集（B站/知乎搜索）', 'https://search.bilibili.com/all?keyword=%E8%B5%B5%E8%80%81%E5%93%A5%20%E5%A4%8D%E7%9B%98'],
+  ['章盟主 · 大资金龙头主升手法（搜索）', 'https://search.bilibili.com/all?keyword=%E7%AB%A0%E7%9B%9F%E4%B8%BB%20%E9%BE%99%E5%A4%B4'],
+  ['炒股养家心法完整版（雪球/知乎搜索）', 'https://xueqiu.com/k?q=%E7%82%92%E8%82%A1%E5%85%BB%E5%AE%B6%E5%BF%83%E6%B3%95'],
+  ['作手新一 · 连板加速打法（搜索）', 'https://search.bilibili.com/all?keyword=%E4%BD%9C%E6%89%8B%E6%96%B0%E4%B8%80'],
+  ['北京炒家 · 首板打法（搜索）', 'https://search.bilibili.com/all?keyword=%E5%8C%97%E4%BA%AC%E7%82%92%E5%AE%B6%20%E9%A6%96%E6%9D%BF'],
+];
 const BOOKS = [
   ['股票大作手回忆录', '利弗莫尔趋势与关键点思想，所有超短体系的源头'],
   ['十年一梦（青泽）', '国内期货操盘手的实战心路，仓位与纪律的教科书'],
@@ -179,6 +200,11 @@ const BOOKS = [
 ];
 const ARTICLES = [
   ['短线王牌：情绪流龙头战法与打板（雪球长文）', 'https://xueqiu.com/1899529380/306482390', '涵盖龙头、补涨、切换、情绪周期核心内容'],
+  ['情绪龙头战法：情绪周期的思考与操作节点（雪球）', 'https://xueqiu.com/k?q=%E6%83%85%E7%BB%AA%E5%91%A8%E6%9C%9F%20%E6%93%8D%E4%BD%9C%E8%8A%82%E7%82%B9', '周期阶段与节点操作'],
+  ['龙头战法与空间板（知乎搜索）', 'https://www.zhihu.com/search?type=content&q=%E7%A9%BA%E9%97%B4%E6%9D%BF%20%E9%BE%99%E5%A4%B4%E6%88%98%E6%B3%95', '空间板与情绪风向标'],
+  ['弱转强实战拆解（知乎搜索）', 'https://www.zhihu.com/search?type=content&q=%E5%BC%B1%E8%BD%AC%E5%BC%BA%20%E7%AB%9E%E4%BB%B7', '分歧转一致的买点案例'],
+  ['断板回流与二波（知乎搜索）', 'https://www.zhihu.com/search?type=content&q=%E6%96%AD%E6%9D%BF%20%E5%9B%9E%E6%B5%81%20%E4%BA%8C%E6%B3%A2', '回流战法案例'],
+  ['超短仓位管理与止损纪律（知乎搜索）', 'https://www.zhihu.com/search?type=content&q=%E8%B6%85%E7%9F%AD%E7%BA%BF%20%E4%BB%93%E4%BD%8D%20%E6%AD%A2%E6%8D%9F', '纪律体系'],
   ['情绪龙头战法——情绪周期的思考与操作节点（豆瓣）', 'https://m.douban.com/note/856515374', '周期阶段与操作节点的对应关系'],
   ['情绪周期才是龙头战法的根基（网易视频）', 'https://www.163.com/v/video/VF6NTE89A.html', '视频讲解'],
 ];
@@ -186,6 +212,20 @@ const ARTICLES = [
 export default function KnowledgePage() {
   const [tab, setTab] = useState('quick');
   const [video, setVideo] = useState(null);
+  const [readUrl, setReadUrl] = useState(null);
+  const [readText, setReadText] = useState('');
+  const [readErr, setReadErr] = useState(null);
+  const openRead = (url) => {
+    setReadUrl(url); setReadText(''); setReadErr(null); setTab('read');
+    fetch('/api/article?url=' + encodeURIComponent(url)).then((r) => r.text()).then((t) => {
+      if (t.startsWith('{')) { setReadErr('抓取失败（部分站点反爬），请点原链接阅读'); setReadText(''); }
+      else {
+        const clean = t.split('<script').join('<div').split('</script>').join('</div>').split('<style').join('<div').split('</style>').join('</div>');
+        const plain = clean.replace(/<[^>]+>/g, '\n').replace(/\n{3,}/g, '\n\n').slice(0, 20000);
+        setReadText(plain);
+      }
+    }).catch((e) => setReadErr(e.message));
+  };
   const [caseOpen, setCaseOpen] = useState(0);
   const [hmOpen, setHmOpen] = useState(0);
 
@@ -383,6 +423,43 @@ export default function KnowledgePage() {
         </div>
       )}
 
+      {tab === 'discipline' && (
+        <div className="panel">
+          <h3>交易纪律详细版（调研高胜率超短手的共性规则）</h3>
+          <table className="tbl compact">
+            <thead><tr><th style={{ width: 120 }}>纪律</th><th>规则</th><th style={{ width: 260 }}>执行细节</th></tr></thead>
+            <tbody>
+              {DISCIPLINE.map((r) => (
+                <tr key={r[0]}><td className="name">{r[0]}</td><td>{r[1]}</td><td className="muted case-plain">{r[2]}</td></tr>
+              ))}
+            </tbody>
+          </table>
+          <div className="hint">纪律的本质：把"到时候怎么办"提前写好，盘中只执行不思考。配合交易日志每周统计执行率。</div>
+        </div>
+      )}
+
+      {tab === 'hotmoney' && (
+        <div className="panel" style={{ marginBottom: 12 }}>
+          <h3>游资资料 / 语录合集入口（搜索直达）</h3>
+          <table className="tbl compact">
+            <tbody>
+              {HM_REFS.map((r) => (
+                <tr key={r[0]}><td className="name"><a className="news-title" href={r[1]} target="_blank" rel="noreferrer">{r[0]} →</a></td></tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+
+      {tab === 'read' && (
+        <div className="panel">
+          <h3>站内阅读 {readUrl ? <a className="news-title" href={readUrl} target="_blank" rel="noreferrer">原链接 →</a> : ''}</h3>
+          {readErr ? <div className="hint warm-hint">抓取失败：{readErr}（可点原链接）</div> : readText ? (
+            <pre className="case-plain" style={{ whiteSpace: 'pre-wrap', fontSize: 13, lineHeight: 1.8 }}>{readText}</pre>
+          ) : <div className="empty">加载中…</div>}
+        </div>
+      )}
+
       {tab === 'books' && (
         <div className="row2">
           <div className="panel">
@@ -400,6 +477,7 @@ export default function KnowledgePage() {
                 {ARTICLES.map((r) => (
                   <tr key={r[0]}>
                     <td className="name"><a className="news-title" href={r[1]} target="_blank" rel="noreferrer">{r[0]} →</a></td>
+                    <td><button className="mini" onClick={() => openRead(r[1])}>站内阅读</button></td>
                     <td className="muted">{r[2]}</td>
                   </tr>
                 ))}
