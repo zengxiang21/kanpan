@@ -43,7 +43,12 @@ function PoolTable({ rows, onWatch, watchCodes, onOpenStock }) {
 export default function ZtPool({ tick, pools, onWatch, onOpenStock }) {
   const [q, setQ] = useState('');
   const [view, setView] = useState('ladder');
+  const [lhb, setLhb] = useState(new Set());
   const watchCodes = useMemo(() => new Set(), []);
+  // 龙虎榜标记（🐉）：与 Ranks / Watchlist 同源，取昨日东财龙虎榜明细
+  useEffect(() => {
+    fetch('/api/lhb').then((r) => r.json()).then((d) => setLhb(new Set(d.codes || []))).catch(() => {});
+  }, []);
   const zt = useMemo(() => {
     const list = pools?.zt || [];
     if (!q.trim()) return list;
