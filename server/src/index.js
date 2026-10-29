@@ -15,6 +15,7 @@ import { industryOf } from './industries.js';
 import { buildHeatmap } from './heatmap.js';
 import { buildLeaderPool } from './leaderpool.js';
 import { buildMacroCalendar } from './macro.js';
+import { buildEarningsCalendar } from './earnings.js';
 import { todayEvents, anomalyDates, buildAnomalyReview, dayOf } from './anomaly.js';
 import { buildPlaybook } from './playbook.js';
 import { getUser, saveUser } from './userstore.js';
@@ -122,6 +123,17 @@ app.get('/api/heatmap', (req, res) => {
 app.get('/api/macro', (req, res) => {
   const days = Math.min(90, Math.max(1, Number(req.query.days) || 30));
   res.json(buildMacroCalendar(days));
+});
+
+// 美股大公司财报日历（SEC EDGAR 驱动，含缓存+限流；日期为推算区间非官方确认日）
+app.get('/api/earnings/us', async (req, res) => {
+  const days = Math.min(180, Math.max(1, Number(req.query.days) || 45));
+  try {
+    res.json(await buildEarningsCalendar(days));
+  } catch (e) {
+    console.warn('[earnings] 接口失败', e.message);
+    res.json({ events: [], note: '财报日历拉取失败：' + e.message, source: 'SEC EDGAR', unavailable: [] });
+  }
 });
 
 // 异动监控：当日实时事件（服务端全市场帧对比，持久化）

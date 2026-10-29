@@ -56,6 +56,8 @@ export async function api(path) {
     }
     return { date: d, total: 0, byType: {}, byHour: [], topMovers: [], zhaTop: [], sealDrop: [], note: '云端快照仅含当日异动，历史日期请用本地模式查看' };
   }
+  // 快照里的顶层字段即可直接命中；earnings/us 的 key 含斜杠，需显式映射
+  if (key === 'earnings/us') return cloudCache.earnings || { events: [] };
   if (cloudCache[key] !== undefined) return cloudCache[key];
   if (key === 'reviewDates' || key === 'auctionDates' || key === 'plan') return [];
   return null;

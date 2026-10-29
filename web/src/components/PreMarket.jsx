@@ -45,6 +45,7 @@ export default function PreMarket({ tick, onOpenStock }) {
   const [news, setNews] = useState([]);
   const [sent, setSent] = useState(null);
   const [macro, setMacro] = useState(null);
+  const [earnings, setEarnings] = useState(null);
 
   useEffect(() => {
     // 美股/全球指数 5 秒快刷（美股盘中是实时盘）；快讯/词频 60 秒
@@ -56,6 +57,8 @@ export default function PreMarket({ tick, onOpenStock }) {
       api('news').then((d) => Array.isArray(d) && setNews(d)).catch(() => {});
       api('sentiment').then((d) => d && d.themes && setSent(d)).catch(() => {});
       api('macro?days=30').then((d) => d && setMacro(d)).catch(() => {});
+      // 财报日期来自 SEC EDGAR 推算，不需要快刷
+      api('earnings/us?days=60').then((d) => d && setEarnings(d)).catch(() => {});
     };
     fast();
     slow();
@@ -222,6 +225,60 @@ export default function PreMarket({ tick, onOpenStock }) {
           {macro?.note}
           <br />
           <span className="muted">数据来源：{macro?.source}。无前值/预期值/实际值（免费结构化源 14 个全部不可用，见 ROADMAP C4）。</span>
+        </div>
+      </div>
+
+      <div className="panel" style={{ marginBottom: 12 }}>
+        <h3>
+          美股大公司财报日历（未来 60 天）
+          <span className="page-tag">映射 A 股板块</span>
+        </h3>
+        {(earnings?.events || []).length === 0 ? (
+          <div className="empty">暂无财报日历数据</div>
+        ) : (
+          <table className="tbl compact">
+            <thead><tr><th>推算窗口</th><th>公司</th><th>产业链</th><th>A 股映射方向</th><th>上次实发</th></tr></thead>
+            <tbody>
+              {(earnings?.events || []).map((e) => (
+                <tr key={e.ticker} className={e.status === 'today' ? 'row-today' : ''}>
+                  <td className="name" style={{ width: 128 }}>
+                    {e.date}
+                    {e.windowEnd && e.windowEnd !== e.date && <span className="muted"> ~ {e.windowEnd}</span>}
+                    {e.status === 'today' && <em className="label lab-hot" style={{ marginLeft: 4 }}>今晚</em>}
+                    {e.status === 'upcoming' && e.daysAhead <= 3 && <em className="label lab-warm" style={{ marginLeft: 4 }}>{e.daysAhead}天后</em>}
+                    {e.status === 'justPassed' && <small className="muted" style={{ marginLeft: 4 }}>刚过{-e.daysAhead}天</small>}
+                  </td>
+                  <td style={{ width: 110 }}>
+                    {e.company}
+                    <small className="muted"> {e.ticker}</small>
+                    <small className="muted">{'★'.repeat(e.importance)}</small>
+                  </td>
+                  <td className="muted" style={{ width: 120 }}>{e.chain}</td>
+                  <td className="reasons-cell" style={{ color: 'var(--accent)' }}>{e.aShare}</td>
+                  <td className="muted" style={{ width: 96 }}>
+                    {e.lastReport || '-'}
+                    {e.lastDaysAgo != null && <small>（{e.lastDaysAgo}天前）</small>}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        )}
+        <div className="hint" style={{ marginTop: 8 }}>
+          {earnings?.note}
+          <br />
+          <span className="muted">
+            数据来源：{earnings?.source}。窗口上限取自该公司同财季历史最晚发财报日，
+            故区间偏宽但不会漏；「刚过」= 推算日已过几天，可能昨晚已发布，请看隔夜美股表现。
+          </span>
+          {earnings?.unavailable?.length > 0 && (
+            <>
+              <br />
+              <span className="muted">
+                暂不能自动获取：{earnings.unavailable.join('；')}。要覆盖需人工维护静态表。
+              </span>
+            </>
+          )}
         </div>
       </div>
 

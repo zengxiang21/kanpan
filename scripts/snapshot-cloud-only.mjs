@@ -9,12 +9,13 @@ const ROOT = path.join(__dirname, '..');
 
 const get = async (p) => (await fetch('http://127.0.0.1:8000/api/' + p)).json();
 
-const [tickPools, review, scan, auction, global, us, sentiment, sectors, news, heatmap, leaders, anomalyToday, anomalyDates] = await Promise.all([
+const [tickPools, review, scan, auction, global, us, sentiment, sectors, news, heatmap, leaders, anomalyToday, anomalyDates, earnings] = await Promise.all([
   get('snapshot'), get('review'), get('scan'), get('auction'),
   get('global').catch(() => []), get('us').catch(() => []), get('sentiment').catch(() => ({ themes: [] })),
   get('sectors').catch(() => []), get('news').catch(() => []),
   get('heatmap').catch(() => ({ groups: [] })), get('leaders').catch(() => null),
   get('anomaly/today').catch(() => ({ events: [] })), get('anomaly/dates').catch(() => []),
+  get('earnings/us?days=60').catch(() => ({ events: [] })),
 ]);
 
 if (!tickPools.tick) {
@@ -29,6 +30,7 @@ const data = {
   snapshot: { tick: tickPools.tick, pools: tickPools.pools },
   review, scan, auction, global, us, sentiment, sectors, news, heatmap, leaders,
   anomaly: { today: anomalyToday, dates: anomalyDates },
+  earnings,
 };
 
 const outFile = path.join(ROOT, 'docs', 'cloud', 'data.json');
