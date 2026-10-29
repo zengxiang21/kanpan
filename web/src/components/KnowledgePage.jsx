@@ -3,6 +3,8 @@ import { useState } from 'react';
 
 const TABS = [
   { key: 'quick', label: '战法速查' },
+  { key: 'tier', label: '龙头分层' },
+  { key: 'signals', label: '盘口语言' },
   { key: 'video', label: '视频课' },
   { key: 'cases', label: '实战案例' },
   { key: 'hotmoney', label: '游资妖股复盘' },
@@ -290,6 +292,141 @@ export default function KnowledgePage() {
               <table className="tbl compact">
                 <tbody>
                   {TERMS.map((r) => (<tr key={r[0]}><td className="name" style={{ width: 90 }}>{r[0]}</td><td className="muted">{r[1]}</td></tr>))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </>
+      )}
+
+      {tab === 'tier' && (
+        <>
+          <div className="panel" style={{ marginBottom: 12 }}>
+            <h3>龙头六层地位判定（同高度做卡位，不同高度做最高）</h3>
+            <table className="tbl compact">
+              <thead><tr><th>层级</th><th>定义</th><th>识别信号</th><th>打法</th><th>风险</th></tr></thead>
+              <tbody>
+                {TIER_RULES.map((r) => (
+                  <tr key={r.tier}>
+                    <td className="name">{r.tier}</td>
+                    <td className="muted">{r.def}</td>
+                    <td>{r.sign}</td>
+                    <td>{r.play}</td>
+                    <td className="muted">{r.risk}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+            <div className="hint" style={{ marginTop: 8 }}>
+              核心原则：同题材同高度只做卡位龙（其余是陪跑），不同高度只做最高板。跟风股的上涨空间被龙头锁死。
+              本站"龙头分层"页已按此分层并给出质量分与次日预期。
+            </div>
+          </div>
+
+          <div className="panel" style={{ marginBottom: 12 }}>
+            <h3>龙头质量分五维度（本站龙头分层的打分口径）</h3>
+            <table className="tbl compact">
+              <thead><tr><th>维度</th><th>权重</th><th>高分特征</th><th>低分特征</th><th>怎么用</th></tr></thead>
+              <tbody>
+                {QUALITY_DIMS.map((r) => (
+                  <tr key={r.dim}>
+                    <td className="name">{r.dim}</td>
+                    <td className="bold">{r.weight}</td>
+                    <td className="up">{r.hi}</td>
+                    <td className="down">{r.lo}</td>
+                    <td className="muted">{r.use}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+            <div className="hint" style={{ marginTop: 8 }}>
+              同样 4 板，封流比 4.79% 和 0.08% 是两只完全不同的票——只看连板高度会把弱者当龙头接。
+            </div>
+          </div>
+
+          <div className="panel">
+            <h3>八大经典陷阱（超短 90% 的亏损来源）</h3>
+            <table className="tbl compact">
+              <thead><tr><th>陷阱</th><th>为什么亏</th><th>怎么避</th></tr></thead>
+              <tbody>
+                {PITFALLS.map((r) => (
+                  <tr key={r.name}>
+                    <td className="name">{r.name}</td>
+                    <td className="muted">{r.desc}</td>
+                    <td className="up">{r.avoid}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </>
+      )}
+
+      {tab === 'signals' && (
+        <>
+          <div className="panel" style={{ marginBottom: 12 }}>
+            <h3>情绪七指标（本站情绪总览页全部实时计算）</h3>
+            <table className="tbl compact">
+              <thead><tr><th>指标</th><th>算法</th><th>怎么读</th><th>触发动作</th></tr></thead>
+              <tbody>
+                {SIGNALS.map((r) => (
+                  <tr key={r.name}>
+                    <td className="name">{r.name}</td>
+                    <td className="muted">{r.calc}</td>
+                    <td>{r.read}</td>
+                    <td className="warn">{r.act}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+
+          <div className="panel" style={{ marginBottom: 12 }}>
+            <h3>分时盘口语言（一天 9 个关键时点）</h3>
+            <table className="tbl compact">
+              <thead><tr><th style={{ width: 110 }}>时段</th><th>盘面特征</th><th>怎么读</th><th>动作</th></tr></thead>
+              <tbody>
+                {INTRADAY.map((r) => (
+                  <tr key={r.t}>
+                    <td className="name">{r.t}</td>
+                    <td>{r.feat}</td>
+                    <td className="muted">{r.read}</td>
+                    <td className="up">{r.act}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+
+          <div className="row2">
+            <div className="panel">
+              <h3>量价形态（本站形态选股页实时扫描）</h3>
+              <table className="tbl compact">
+                <thead><tr><th>形态</th><th>特征</th><th>动作</th><th>风险</th></tr></thead>
+                <tbody>
+                  {VOLUME_PATTERNS.map((r) => (
+                    <tr key={r.pat}>
+                      <td className="name">{r.pat}</td>
+                      <td className="muted">{r.feat}</td>
+                      <td className="up">{r.act}</td>
+                      <td className="down">{r.risk}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+            <div className="panel">
+              <h3>超短五条铁律（环境→方向→标的→买点→纪律）</h3>
+              <table className="tbl compact">
+                <thead><tr><th style={{ width: 110 }}>铁律</th><th>内容</th><th>为什么</th></tr></thead>
+                <tbody>
+                  {MARKET_RULES.map((r) => (
+                    <tr key={r.rule}>
+                      <td className="name">{r.rule}</td>
+                      <td>{r.detail}</td>
+                      <td className="muted">{r.why}</td>
+                    </tr>
+                  ))}
                 </tbody>
               </table>
             </div>
