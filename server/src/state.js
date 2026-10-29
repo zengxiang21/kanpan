@@ -8,6 +8,18 @@ import { loadIndustryMap, ensureIndustryMapStarted, industryState } from './indu
 import { updateAuctionCloses, saveAuctionSnapshot, getAuctionByDate } from './auctionstore.js';
 import { auctionScan } from './scan.js';
 
+// 情绪周期定位（与复盘页同口径）
+function cycleStageOf({ ztCount, dtCount, zbCount, zhaRate, maxLianban, premium }) {
+  const prem = premium ? premium.avg : null;
+  if (dtCount > ztCount && dtCount >= 10) return ['退潮', '跌停多于涨停，亏钱效应扩散，多看少动'];
+  if (ztCount < 20 && (prem != null && prem < 1)) return ['冰点', '涨停稀少且无溢价，等首板尝试新方向'];
+  if (ztCount >= 100 && maxLianban >= 5 && prem != null && prem >= 2) return ['高潮', '情绪顶点，持有为主，新开仓只做主流龙头'];
+  if (zhaRate != null && zhaRate >= 0.35 && maxLianban >= 3) return ['分歧', '炸板率升高，高位分歧，做分歧转一致的卡位'];
+  if (ztCount >= 50 && maxLianban >= 3) return ['发酵', '梯队完整，主流题材可打龙头与跟风'];
+  if (ztCount >= 30) return ['启动', '首板增多，试探性参与新题材首板'];
+  return ['震荡', '情绪中性，控制仓位，只做确定性机会'];
+}
+
 function auctionSavedToday(day) {
   return !!getAuctionByDate(day);
 }
@@ -309,6 +321,7 @@ export async function refreshTick() {
     maxLianban,
     lianbanDist: dist,
     emotionLabel: emotionLabel(ztCount, zhaRate ?? 0, maxLianban),
+    cycleStage: cycleStageOf({ ztCount, dtCount: state.pools.dt.length, zbCount, zhaRate, maxLianban, premium })[0],
     premium, jinji, env, dist13, premiumDetail,
     gainers: gainRes.data,
     volRatio: vrRes.data,
