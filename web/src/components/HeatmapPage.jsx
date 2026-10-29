@@ -195,10 +195,46 @@ export default function HeatmapPage({ onOpenStock }) {
               <div className="v" style={{ fontSize: 14 }}>{(picked.amount / 1e8).toFixed(1)} 亿</div>
             </div>
             <div>
-              <div className="k">涨停家数</div>
-              <div className="v" style={{ fontSize: 14 }}>{picked.limitUp}</div>
-              <div className="note">{picked.limitUp > 0 ? '有高度板可做龙头' : '无涨停，观望为主'}</div>
+              <div className="k">涨跌家数</div>
+              <div className="v" style={{ fontSize: 14 }}>
+                <span className="up">{picked.up}</span>
+                <span className="muted"> / </span>
+                <span className="down">{picked.down}</span>
+                <span className="muted"> / {picked.flat}</span>
+              </div>
             </div>
+          </div>
+
+          {/* 该行业涨停股明细 */}
+          <div style={{ marginTop: 12 }}>
+            <div className="k" style={{ fontSize: 12, marginBottom: 6 }}>
+              涨停股（{picked.limitUp} 只）
+              <span className="muted" style={{ fontWeight: 'normal', marginLeft: 6 }}>点击看详情 · 按连板高度与封单排序</span>
+            </div>
+            {(picked.ztList || []).length === 0 ? (
+              <div className="hint">该行业今日无涨停</div>
+            ) : (
+              <div className="tianti-stocks">
+                {(picked.ztList || []).map((z) => (
+                  <button
+                    className="stock-chip"
+                    key={z.code}
+                    onClick={() => onOpenStock?.(z.code, z.name)}
+                    title={`${z.lianban} 板 · 封单 ${z.sealFund}亿 · 首封 ${z.firstSeal || '-'}${z.zhaCount ? ` · 炸板${z.zhaCount}次` : ''}`}
+                  >
+                    <b>
+                      {z.name}
+                      <span className={`lb ${z.lianban >= 3 ? 'lb-high' : ''}`}>{z.lianban}板</span>
+                    </b>
+                    <small>封单 {z.sealFund}亿</small>
+                    <small>
+                      <span className="muted">首封 {z.firstSeal || '-'}</span>
+                      {z.zhaCount > 0 && <span className="warn"> · 炸{z.zhaCount}次</span>}
+                    </small>
+                  </button>
+                ))}
+              </div>
+            )}
           </div>
         </div>
       )}

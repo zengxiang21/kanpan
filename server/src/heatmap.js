@@ -39,7 +39,27 @@ function shadeOf(pct, bucket) {
 export function buildHeatmap(sweep, pools) {
   if (!sweep || !sweep.rows?.length) return null;
 
-  const ztByCode = new Map((pools?.zt || []).map((z) => [z.code, z]));
+  // 涨停池按行业归组：云图点格子要能看到"这个行业哪几只涨停了"
+  // 注意用 industryOf(code) 而非 z.industry——两者口径必须和格子分组一致，
+  // 否则涨停股会挂到别的行业格子上
+  const ztByIndustry = new Map();
+  for (const z of pools?.zt || []) {
+    const ind = industryOf(z.code) || '其他';
+    let list = ztByIndustry.get(ind);
+    if (!list) { list = []; ztByIndustry.set(ind, list); }
+    list.push({
+      code: z.code, name: z.name,
+      lianban: z.lianban || 1,
+      sealFund: z.sealFund ? +(z.sealFund / 1e8).toFixed(2) : 0,
+      firstSeal: z.firstSeal || null,
+      zhaCount: z.zhaCount || 0,
+    });
+  }
+  // 连板高的排前面，同高度按封单大的排前面
+  for (const list of ztByIndustry.values()) {
+    list.sort((a, b) => b.lianban - a.lianban || b.sealFund - a.sealFund);
+  }
+
   const byIndustry = new Map();
 
   for (const r of sweep.rows) {
@@ -47,7 +67,7 @@ export function buildHeatmap(sweep, pools) {
     const ind = industryOf(r.code) || '其他';
     let g = byIndustry.get(ind);
     if (!g) {
-      g = { industry: ind, count: 0, up: 0, down: 0, flat: 0, limitUp: 0, limitDown: 0,
+      g = { industry: ind, count: 0, up: 0, down: 0, flat: 0, limitDown: 0,
             sumPct: 0, sumAmount: 0, maxPct: -Infinity, minPct: Infinity,
             leader: null, leaderPct: -Infinity, biggestFall: null, biggestFallPct: Infinity };
       byIndustry.set(ind, g);
@@ -56,7 +76,6 @@ export function buildHeatmap(sweep, pools) {
     g.sumPct += r.pct;
     g.sumAmount += r.amount || 0;
     if (r.pct > 0) g.up++; else if (r.pct < 0) g.down++; else g.flat++;
-    if (r.pct >= 9.7) g.limitUp++;
     if (r.pct <= -9.7) g.limitDown++;
     if (r.pct > g.maxPct) g.maxPct = r.pct;
     if (r.pct < g.minPct) g.minPct = r.pct;
@@ -75,11 +94,13 @@ export function buildHeatmap(sweep, pools) {
     .map((g) => {
       const avgPct = g.count ? g.sumPct / g.count : 0;
       const bucket = bucketOf(avgPct);
+      // 涨停数统一取涨停池口径，保证"格子角标数字"与"点开后列出的只数"永远一致
+      const ztList = ztByIndustry.get(g.industry) || [];
       return {
         industry: g.industry,
         count: g.count,
         up: g.up, down: g.down, flat: g.flat,
-        limitUp: g.limitUp, limitDown: g.limitDown,
+        limitUp: ztList.length, limitDown: g.limitDown,
         avgPct: +avgPct.toFixed(2),
         amount: Math.round(g.sumAmount),
         maxPct: +g.maxPct.toFixed(2),
@@ -87,8 +108,9 @@ export function buildHeatmap(sweep, pools) {
         leader: g.leader, biggestFall: g.biggestFall,
         bucket,
         shade: shadeOf(avgPct, bucket),
-        heat: Math.round(g.count * 0.6 + avgPct * 6 + g.limitUp * 4),
-        hasZt: g.limitUp > 0,
+        heat: Math.round(g.count * 0.6 + avgPct * 6 + ztList.length * 4),
+        hasZt: ztList.length > 0,
+        ztList,
       };
     })
     .sort((a, b) => b.heat - a.heat);
@@ -99,11 +121,12 @@ export function buildHeatmap(sweep, pools) {
   const groups = [...named];
   if (otherG) {
     const avgPct = otherG.count ? otherG.sumPct / otherG.count : 0;
+    const ztList = ztByIndustry.get(OTHER) || [];
     groups.push({
       industry: OTHER,
       count: otherG.count,
       up: otherG.up, down: otherG.down, flat: otherG.flat,
-      limitUp: otherG.limitUp, limitDown: otherG.limitDown,
+      limitUp: ztList.length, limitDown: otherG.limitDown,
       avgPct: +avgPct.toFixed(2),
       amount: Math.round(otherG.sumAmount),
       maxPct: +otherG.maxPct.toFixed(2),
@@ -112,7 +135,8 @@ export function buildHeatmap(sweep, pools) {
       bucket: bucketOf(avgPct),
       shade: shadeOf(avgPct, bucketOf(avgPct)),
       heat: 0,
-      hasZt: otherG.limitUp > 0,
+      hasZt: ztList.length > 0,
+      ztList,
       unmapped: true,
     });
   }
