@@ -106,7 +106,11 @@ export default function PlaybookPage({ onOpenStock }) {
                   <td className="bold">{d.count}</td>
                   <td className={d.avgGap > 0 ? 'up' : 'down'}>{d.avgGap > 0 ? '+' : ''}{d.avgGap}%</td>
                   <td className="bold">{d.strength}</td>
-                  <td className="muted">{d.top || '-'}</td>
+                  <td className="muted">
+                    {d.topCode
+                      ? <span className="name-link" onClick={() => onOpenStock?.(d.topCode, d.top)}>{d.top}</span>
+                      : (d.top || '-')}
+                  </td>
                   <td>
                     <span className={`lb ${d.relation === '主线延续' ? 'lb-high' : d.relation === '新方向' ? 'lb-warn' : ''}`}>
                       {d.relation}

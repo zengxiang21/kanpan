@@ -3,7 +3,7 @@ import { useEffect, useState } from 'react';
 import { fmtPct, pctCls, fmtAmount } from '../lib/format.js';
 import { api, CLOUD } from '../lib/api.js';
 
-export default function SectorsPage({ pools }) {
+export default function SectorsPage({ pools, onOpenStock }) {
   const [sectors, setSectors] = useState([]);
   const [openTheme, setOpenTheme] = useState(null);
   const [err, setErr] = useState(null);
@@ -59,7 +59,12 @@ export default function SectorsPage({ pools }) {
                   <td className={`bold ${pctCls(s.pct)}`}>{fmtPct(s.pct)}</td>
                   <td>{s.count}</td>
                   <td>{fmtAmount(s.amount)}</td>
-                  <td className="muted">{s.leader} {fmtPct(s.leaderPct)}</td>
+                  <td className="muted">
+                    {s.leaderCode
+                      ? <span className="name-link" onClick={() => onOpenStock?.(s.leaderCode, s.leader)}>{s.leader}</span>
+                      : s.leader}{' '}
+                    {fmtPct(s.leaderPct)}
+                  </td>
                 </tr>
               ))}
               {sectors.length === 0 && <tr><td colSpan={5} className="empty">加载中…</td></tr>}
@@ -75,7 +80,11 @@ export default function SectorsPage({ pools }) {
                 <tr key={s.code}>
                   <td className="name">{s.name}</td>
                   <td className={`bold ${pctCls(s.pct)}`}>{fmtPct(s.pct)}</td>
-                  <td className="muted">{s.leader}</td>
+                  <td className="muted">
+                    {s.leaderCode
+                      ? <span className="name-link" onClick={() => onOpenStock?.(s.leaderCode, s.leader)}>{s.leader}</span>
+                      : s.leader}
+                  </td>
                 </tr>
               ))}
               {sectors.length === 0 && <tr><td colSpan={3} className="empty">加载中…</td></tr>}
@@ -94,7 +103,11 @@ export default function SectorsPage({ pools }) {
               {openTheme === t.industry && (
                 <div style={{ marginTop: 6, textAlign: 'left' }}>
                   {(pools?.zt || []).filter((z) => z.industry === t.industry).map((z) => (
-                    <div key={z.code} style={{ fontSize: 12 }}>{z.lianban > 1 ? z.lianban + '板·' : ''}{z.name} <span className="muted">{z.firstSeal || ''}</span></div>
+                    <div key={z.code} style={{ fontSize: 12 }}>
+                      {z.lianban > 1 ? z.lianban + '板·' : ''}
+                      <span className="name-link" onClick={(e) => { e.stopPropagation(); onOpenStock?.(z.code, z.name); }}>{z.name}</span>
+                      <span className="muted"> {z.firstSeal || ''}</span>
+                    </div>
                   ))}
                 </div>
               )}

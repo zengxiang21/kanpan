@@ -111,7 +111,7 @@ export default function ZtPool({ tick, pools, onWatch, onOpenStock }) {
           <tbody>
             {(pools?.zb || []).map((s) => (
               <tr key={s.code}>
-                <td className="name">{s.name}<small>{s.code}</small></td>
+                <td className="name"><span className="name-link" onClick={() => onOpenStock(s.code, s.name)}>{s.name}<small>{s.code}</small></span></td>
                 <td className={pctCls(s.pct)}>{fmtPrice(s.price)}</td>
                 <td className={pctCls(s.pct)}>{fmtPct(s.pct)}</td>
                 <td>{s.industry}</td>
@@ -129,7 +129,7 @@ export default function ZtPool({ tick, pools, onWatch, onOpenStock }) {
           <tbody>
             {(pools?.dt || []).map((s) => (
               <tr key={s.code}>
-                <td className="name">{s.name}<small>{s.code}</small></td>
+                <td className="name"><span className="name-link" onClick={() => onOpenStock(s.code, s.name)}>{s.name}<small>{s.code}</small></span></td>
                 <td className={pctCls(s.pct)}>{fmtPrice(s.price)}</td>
                 <td className={pctCls(s.pct)}>{fmtPct(s.pct)}</td>
                 <td>{s.industry}</td>

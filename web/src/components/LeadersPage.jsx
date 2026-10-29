@@ -232,7 +232,7 @@ export default function LeadersPage({ onOpenStock }) {
               {dropped.map((d) => (
                 <tr key={d.code} className={d.wasTop ? 'row-today' : ''}>
                   <td className="name">
-                    {d.name}
+                    <span className="name-link" onClick={() => onOpenStock?.(d.code, d.name)}>{d.name}</span>
                     {d.wasTop && <em className="lp-tag lp-t-gap" style={{ marginLeft: 5 }}>高度真空</em>}
                   </td>
                   <td className="muted">{d.industry}</td>

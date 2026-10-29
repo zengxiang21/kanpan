@@ -22,7 +22,7 @@ function comment(t) {
   return parts.join(' · ') + ` → ${advice}`;
 }
 
-export default function EmotionPanel({ tick, pools }) {
+export default function EmotionPanel({ tick, pools, onOpenStock }) {
   if (!tick) return <div className="empty">连接行情服务中…</div>;
   const t = tick;
   const zt = [...(pools?.zt || [])].sort((a, b) => (b.lianban || 1) - (a.lianban || 1));
@@ -128,7 +128,7 @@ export default function EmotionPanel({ tick, pools }) {
             {ladder.map((s) => (
               <div className="ladder-row" key={s.code}>
                 <span className={`lb ${s.lianban >= 3 ? 'lb-high' : ''}`}>{s.lianban}板</span>
-                <span className="lname">{s.name}</span>
+                <span className="lname name-link" onClick={() => onOpenStock?.(s.code, s.name)}>{s.name}</span>
                 <span className="lcode">{s.code}</span>
                 <span className="lind">{s.industry}</span>
               </div>

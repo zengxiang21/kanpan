@@ -373,7 +373,16 @@ export default function ReviewPage({ tick, watch, onOpenStock }) {
                       <td className="name">{th.industry}</td>
                       <td className="up bold">{th.count}</td>
                       <td>{th.top}</td>
-                      <td className="muted">{th.stocks.filter((s) => s.lianban > 1).map((s) => `${s.name}${s.lianban}板`).join(' · ') || '全首板'}</td>
+                      <td className="muted">
+                        {th.stocks.filter((s) => s.lianban > 1).length
+                          ? th.stocks.filter((s) => s.lianban > 1).map((s, i) => (
+                            <span key={s.code}>
+                              {i > 0 ? ' · ' : ''}
+                              <span className="name-link" onClick={() => onOpenStock?.(s.code, s.name)}>{s.name}{s.lianban}板</span>
+                            </span>
+                          ))
+                          : '全首板'}
+                      </td>
                     </tr>
                   ))}
                 </tbody>

@@ -133,6 +133,7 @@ export function buildPlaybook(state, auction) {
     strength: d.strength,
     avgGap: d.avgGap,
     top: d.top,
+    topCode: d.topCode || null,
     relation: yesterdayMain.includes(d.direction) ? '主线延续' : (newDirs.includes(d) ? '新方向' : '—'),
     advice: yesterdayMain.includes(d.direction) ? '可做，主线有连续性' : (d.strength >= 200 ? '强度够，可试错首板' : '观察为主'),
   }));

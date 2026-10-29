@@ -39,7 +39,7 @@ const GLOBAL_MAP = {
   富时A50期货: 'A股开盘前最重要先行指标',
 };
 
-export default function PreMarket({ tick }) {
+export default function PreMarket({ tick, onOpenStock }) {
   const [global, setGlobal] = useState([]);
   const [us, setUs] = useState([]);
   const [news, setNews] = useState([]);
@@ -154,7 +154,7 @@ export default function PreMarket({ tick }) {
               {tick.premiumDetail.slice(0, 8).map((p) => (
                 <div className="prem-row" key={p.code}>
                   <span className="lb">{p.lianban}板</span>
-                  <b>{p.name}</b>
+                  <span className="name-link" onClick={() => onOpenStock?.(p.code, p.name)}>{p.name}</span>
                   <span className="up">{fmtPct(p.pct)}</span>
                 </div>
               ))}
@@ -164,7 +164,7 @@ export default function PreMarket({ tick }) {
               {tick.premiumDetail.slice(-8).reverse().map((p) => (
                 <div className="prem-row" key={p.code}>
                   <span className="lb">{p.lianban}板</span>
-                  <b>{p.name}</b>
+                  <span className="name-link" onClick={() => onOpenStock?.(p.code, p.name)}>{p.name}</span>
                   <span className="down">{fmtPct(p.pct)}</span>
                 </div>
               ))}

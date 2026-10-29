@@ -309,7 +309,7 @@ export async function auctionScan(sweepRows, pools, phase, extras = {}) {
     d.count++;
     d.sumGap += r.pct;
     d.sumAmount += r.amount || 0;
-    if (r.pct > d.maxGap) { d.maxGap = r.pct; d.top = r.name; }
+    if (r.pct > d.maxGap) { d.maxGap = r.pct; d.top = r.name; d.topCode = r.code; }
     if (r.firstSeal) d.sealCount++;
     dmap.set(key, d);
   }
@@ -317,7 +317,7 @@ export async function auctionScan(sweepRows, pools, phase, extras = {}) {
     .map((d) => ({
       direction: d.direction, count: d.count,
       avgGap: +(d.sumGap / d.count).toFixed(2), maxGap: +d.maxGap.toFixed(2),
-      amount: Math.round(d.sumAmount), top: d.top, sealed: d.sealCount,
+      amount: Math.round(d.sumAmount), top: d.top, topCode: d.topCode || null, sealed: d.sealCount,
       strength: Math.round(d.count * 2 + (d.sumGap / d.count) * 8 + d.sumAmount / 5e7),
     }))
     .sort((a, b) => b.strength - a.strength)
