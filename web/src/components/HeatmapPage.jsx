@@ -131,17 +131,30 @@ export default function HeatmapPage({ onOpenStock }) {
             key={g.industry}
             className={clsOf(g)}
             onClick={() => setPicked(picked?.industry === g.industry ? null : g)}
-            title={`${g.industry}：均涨 ${g.avgPct}% · ${g.count} 只（${g.up}涨/${g.down}跌）· 涨停 ${g.limitUp}`}
+            title={`${g.industry}：均涨 ${g.avgPct > 0 ? '+' : ''}${g.avgPct}% · ${g.count} 只（${g.up} 涨 / ${g.down} 跌）${g.limitUp ? ` · 涨停 ${g.limitUp}` : ''}`}
           >
-            <span className="hm-name">{g.industry}{g.unmapped ? '（未映射）' : ''}</span>
-            <span className="hm-pct">{g.avgPct > 0 ? '+' : ''}{g.avgPct}%</span>
+            <span className="hm-name">{g.industry}</span>
+            <span className="hm-pct">{g.avgPct > 0 ? '+' : ''}{g.avgPct}<i>%</i></span>
             <span className="hm-sub">
-              <span className="up">{g.up}</span>/<span className="down">{g.down}</span>
-              {g.limitUp > 0 && <em className="hm-zt">{g.limitUp}板</em>}
+              <span>{g.up}</span>
+              <span className="hm-sep">/</span>
+              <span>{g.down}</span>
             </span>
+            {g.limitUp > 0 && <em className="hm-badge">{g.limitUp}板</em>}
+            {g.unmapped && <em className="hm-unmap-tag">未映射</em>}
           </button>
         ))}
         {shown.length === 0 && <div className="empty">该筛选下没有行业</div>}
+      </div>
+
+      <div className="hm-legend">
+        <span className="hm-lbl">颜色 = 行业平均涨跌幅</span>
+        <span className="hm-scale">
+          {['n10', 'n7', 'n5', 'n3', 'n1', 'flat', 'p1', 'p3', 'p5', 'p7', 'p10'].map((k) => (
+            <i key={k} className={`hm-swatch hm-${k}`} />
+          ))}
+        </span>
+        <span className="muted">跌 3%+ ← → 涨 3%+</span>
       </div>
 
       {picked && (
