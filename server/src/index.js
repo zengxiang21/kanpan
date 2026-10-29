@@ -16,6 +16,7 @@ import { buildHeatmap } from './heatmap.js';
 import { buildLeaderPool } from './leaderpool.js';
 import { buildMacroCalendar } from './macro.js';
 import { todayEvents, anomalyDates, buildAnomalyReview, dayOf } from './anomaly.js';
+import { buildPlaybook } from './playbook.js';
 import { getUser, saveUser } from './userstore.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -139,6 +140,25 @@ app.get('/api/anomaly/review', (req, res) => {
   const date = String(req.query.date || '');
   if (!/^\d{8}$/.test(date)) return res.status(400).json({ error: 'bad date, want yyyyMMdd' });
   res.json(buildAnomalyReview(date));
+});
+
+// 开盘前操作手册：昨日复盘 + 今日竞价实况 + 大盘环境 → 场景化操作方案
+app.get('/api/playbook', async (req, res) => {
+  try {
+    // 复用 /api/auction 的同一份缓存逻辑，保证手册与竞价雷达口径一致
+    const phase = marketPhase();
+    const lhbDate = state.pools.prevDate;
+    if (lhbDate && lhbCache.date !== lhbDate) {
+      try { lhbCache.codes = await getLHBCodes(lhbDate); lhbCache.date = lhbDate; } catch { /* 用空集 */ }
+    }
+    if (Date.now() - auctionCache.at > 10_000 || !auctionCache.data) {
+      auctionCache.data = await auctionScan(state.marketSweep, state.pools, phase, { lhbCodes: new Set(lhbCache.codes), lhbDate }).catch(() => auctionCache.data);
+      auctionCache.at = Date.now();
+    }
+    res.json(buildPlaybook(state, auctionCache.data));
+  } catch (e) {
+    res.status(502).json({ error: e.message });
+  }
 });
 
 // 龙头分层动态池（总龙头/龙二/分支龙头 + 进出状态）

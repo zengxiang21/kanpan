@@ -7,6 +7,7 @@ import ZtPool from './components/ZtPool.jsx';
 import Ranks from './components/Ranks.jsx';
 import Watchlist from './components/Watchlist.jsx';
 import PreMarket from './components/PreMarket.jsx';
+import PlaybookPage from './components/PlaybookPage.jsx';
 import AuctionPage from './components/AuctionPage.jsx';
 import ScanPage from './components/ScanPage.jsx';
 import AnomalyPage from './components/AnomalyPage.jsx';
@@ -23,6 +24,7 @@ const MENU = [
     group: '盘前',
     items: [
       { key: 'premarket', label: '盘前决策', comp: PreMarket },
+      { key: 'playbook', label: '操作手册', comp: PlaybookPage },
       { key: 'auction', label: '竞价雷达', comp: AuctionPage },
     ],
   },
