@@ -169,6 +169,119 @@ console.log('\n[7] 封单格式化（亿）');
   eq(r.chief[0].sealFund, 2.5, '2.5e8 → 2.5 亿');
 }
 
+const truthy = (cond, label) => {
+  if (cond) { pass++; console.log(`  ok   ${label}`); }
+  else { fail++; console.log(`  FAIL ${label}`); }
+};
+// ================= quality score / kawci / gap / height change =================
+// Chinese keys are written as unicode escapes to avoid any encoding issues.
+const K_LADDER = '\u68af\u961f\u652f\u6491'; // ladder support
+const K_SEALTIME = '\u5c01\u677f\u65f6\u95f4'; // seal time
+const mk = (code, name, lianban, industry, sealFund, floatCap, firstSeal, zhaCount = 0) =>
+  ({ code, name, lianban, industry, sealFund, floatCap, firstSeal, zhaCount });
+
+console.log('\n[8] quality: stronger seal scores higher at same height');
+{
+  const strong = mk('001', 'AQ', 3, 'X', 3e8, 1e10, '09:31:00');
+  const weak = mk('002', 'BQ', 3, 'X', 2e6, 1e10, '14:30:00', 3);
+  const r = buildLeaderPool({ zt: [strong, weak, mk('003', 'CF', 1, 'X', 1e7, 1e9, '10:00:00')], prevZt: [] }, '20261029', false);
+  const a = r.chief.find((c) => c.code === '001');
+  const b = r.chief.find((c) => c.code === '002');
+  truthy(a && b, 'both 3-board stocks enter chief');
+  if (a && b) {
+    truthy(a.quality > b.quality, `strong(${a.quality}) > weak(${b.quality})`);
+    eq(a.sealRatio, 3, 'strong seal ratio = 3%');
+    eq(r.chief[0].code, '001', 'higher quality ranks first');
+    eq(r.chief[0].isKawci, true, 'first one flagged as kawci');
+    eq(r.chief[1].isKawci, undefined, 'second one not flagged');
+    eq(a.qualityBreakdown.length, 5, 'quality has 5 dimensions');
+    truthy(a.nextDay && a.nextDay.text.length > 0, 'has next-day hint');
+  }
+}
+
+console.log('\n[9] lone theme deducts ladder support');
+{
+  const lone = mk('001', 'LONE', 3, 'X', 2e8, 1e10, '09:31:00');
+  const r = buildLeaderPool({ zt: [lone], prevZt: [] }, '20261029', false);
+  const c = r.chief[0];
+  const sup = c.qualityBreakdown.find((b) => b.name === K_LADDER);
+  eq(sup.score, 0, 'lone: ladder support 0');
+  truthy(r.stats.loneThemes.includes('X'), 'stats.loneThemes includes X');
+}
+
+console.log('\n[10] gap detection: 4-board + 2-board, missing 3');
+{
+  const r = buildLeaderPool({
+    zt: [mk('001', 'B4', 4, 'X', 1e8, 1e10, '09:31:00'), mk('002', 'B2', 2, 'X', 1e8, 1e10, '09:31:00')],
+    prevZt: [],
+  }, '20261029', false);
+  const b = r.branches.find((x) => x.industry === 'X');
+  eq(b.depth, 2, 'depth = 2');
+  eq(b.gaps, ['3\u677f'], 'gap = 3-board');
+  truthy(r.stats.gapThemes.includes('X'), 'stats.gapThemes includes X');
+}
+
+console.log('\n[11] no gap: complete 4/3/2 ladder');
+{
+  const r = buildLeaderPool({
+    zt: [mk('001', 'B4', 4, 'X', 1e8, 1e10, '09:31:00'), mk('002', 'B3', 3, 'X', 1e8, 1e10, '09:31:00'), mk('003', 'B2', 2, 'X', 1e8, 1e10, '09:31:00')],
+    prevZt: [],
+  }, '20261029', false);
+  const b = r.branches.find((x) => x.industry === 'X');
+  eq(b.depth, 3, 'depth = 3');
+  eq(b.gaps, [], 'no gap');
+  eq(b.heights, [4, 3, 2], 'heights descending');
+}
+
+console.log('\n[12] height drop triggers chiefBroken + heightChange');
+{
+  const r = buildLeaderPool({
+    zt: [mk('001', 'B3', 3, 'X', 1e8, 1e10, '09:31:00')],
+    prevZt: [mk('009', 'B5', 5, 'X', 1e8, 1e10, '09:31:00')],
+  }, '20261029', false);
+  eq(r.globalMaxLianban, 3, 'today max = 3');
+  eq(r.prevMaxLianban, 5, 'prev max = 5');
+  eq(r.stats.heightChange, -2, 'heightChange = -2');
+  eq(r.stats.chiefBroken, true, 'chiefBroken = true');
+  eq(r.chief[0].nextDay.level, 'avoid', 'next-day = avoid');
+  eq(r.dropped.find((x) => x.code === '009').wasTop, true, 'dropped flagged wasTop');
+}
+
+console.log('\n[13] height expansion does not trigger broken');
+{
+  const r = buildLeaderPool({
+    zt: [mk('001', 'B4', 4, 'X', 2e8, 1e10, '09:31:00'), mk('002', 'B2', 2, 'X', 1e8, 1e10, '09:31:00')],
+    prevZt: [mk('001', 'B4', 3, 'X', 1e8, 1e10, '09:31:00')],
+  }, '20261029', false);
+  eq(r.stats.heightChange, 1, 'heightChange = +1');
+  eq(r.stats.chiefBroken, false, 'chiefBroken = false');
+  eq(r.chief[0].promoted, true, 'promoted flagged');
+}
+
+console.log('\n[14] branch table carries full ladder stocks');
+{
+  const r = buildLeaderPool({
+    zt: [mk('001', 'B4', 4, 'X', 1e8, 1e10, '09:31:00'), mk('002', 'B3', 3, 'X', 1e8, 1e10, '09:31:00'), mk('003', 'B2', 2, 'X', 1e8, 1e10, '09:31:00')],
+    prevZt: [],
+  }, '20261029', false);
+  const b = r.branches.find((x) => x.industry === 'X');
+  eq(b.stocks.length, 3, 'stocks has all 3');
+  eq(b.stocks.map((s) => s.lianban), [4, 3, 2], 'stocks descending');
+  truthy(b.leader.quality > 0, 'branch leader has quality');
+  truthy(b.second.quality > 0, 'branch second has quality');
+}
+
+console.log('\n[15] seal time affects quality');
+{
+  const early = mk('001', 'EARLY', 3, 'X', 2e8, 1e10, '09:31:00');
+  const late = mk('002', 'LATE', 3, 'X', 2e8, 1e10, '14:35:00');
+  const r = buildLeaderPool({ zt: [early, late, mk('003', 'F', 1, 'X', 1e7, 1e9, '10:00:00')], prevZt: [] }, '20261029', false);
+  const e = r.chief.find((c) => c.code === '001');
+  const l = r.chief.find((c) => c.code === '002');
+  truthy(e.quality > l.quality, `early(${e.quality}) > late(${l.quality})`);
+  eq(e.qualityBreakdown.find((b) => b.name === K_SEALTIME).score, 15, '09:31 seal gets full 15');
+}
+
 restore();
 console.log(`\n===== ${pass} passed, ${fail} failed =====`);
 process.exit(fail ? 1 : 0);

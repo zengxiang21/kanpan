@@ -13,21 +13,31 @@ const STATUS = {
 
 function LeaderChip({ s, onOpenStock }) {
   const st = STATUS[s.status];
+  const q = s.quality || 0;
+  // 质量分 → 配色（>=75 强 / >=60 中 / <60 弱）
+  const qCls = q >= 75 ? 'lp-q-high' : q >= 60 ? 'lp-q-mid' : 'lp-q-low';
   return (
     <button
       className="stock-chip lp-cell"
       onClick={() => onOpenStock?.(s.code, s.name)}
-      title={`${s.industry || ''} · ${s.lianban} 板 · 封单 ${s.sealFund || 0} 亿${s.prevLianban ? ` · 昨 ${s.prevLianban} 板` : ''} · 点击看详情`}
+      title={`${s.industry || ''} · ${s.lianban} 板 · 封单 ${s.sealFund || 0} 亿${s.sealRatio != null ? `（封流比 ${s.sealRatio}%）` : ''} · 首封 ${s.firstSeal || '-'}${s.prevLianban ? ` · 昨 ${s.prevLianban} 板` : ''} · 质量分 ${q} · 点击看详情`}
     >
       <b>
         {s.name}
         <span className={`lb ${s.lianban >= 3 ? 'lb-high' : ''}`}>{s.lianban}板</span>
+        {s.isKawci && <em className="lp-tag lp-t-kawci">卡位</em>}
       </b>
-      <small>{s.industry || '其他'}{s.sealFund > 0 ? ` · 封单 ${s.sealFund}亿` : ''}</small>
       <small>
-        {st && <em className={`lp-tag ${st.cls}`}>{st.label}</em>}
-        <span className="muted">{s.prevLianban ? `昨${s.prevLianban}板` : '昨未板'}</span>
+        {s.industry || '其他'}
+        {s.sealFund > 0 ? ` · 封单 ${s.sealFund}亿` : ''}
+        {s.sealRatio != null ? ` (${s.sealRatio}%)` : ''}
       </small>
+      <small>
+        <span className={`lp-q ${qCls}`}>{q}分</span>
+        {st && <em className={`lp-tag ${st.cls}`}>{st.label}</em>}
+        <span className="muted">首封 {s.firstSeal || '-'}</span>
+      </small>
+      {s.nextDay && <small className="lp-next">{s.nextDay.text}</small>}
     </button>
   );
 }
@@ -81,9 +91,25 @@ export default function LeadersPage({ onOpenStock }) {
 
       <div className="cards" style={{ marginBottom: 12 }}>
         <div className="card">
-          <div className="k">总龙头</div>
-          <div className="v">{stats.chiefCount}</div>
-          <div className="note">{chief.map((c) => `${c.name}${c.lianban}板`).join(' / ') || '无'}</div>
+          <div className="k">空间高度</div>
+          <div className="v">
+            {data.globalMaxLianban}<small>板</small>
+            {stats.heightChange !== 0 && (
+              <small style={{ marginLeft: 6, color: stats.heightChange > 0 ? 'var(--up)' : 'var(--down)' }}>
+                {stats.heightChange > 0 ? '↑' : '↓'}{Math.abs(stats.heightChange)}
+              </small>
+            )}
+          </div>
+          <div className="note">
+            昨日 {data.prevMaxLianban} 板
+            {stats.heightChange < 0 && <span className="down"> · 高度下降，退潮信号</span>}
+            {stats.heightChange > 0 && <span className="up"> · 高度扩张</span>}
+          </div>
+        </div>
+        <div className="card">
+          <div className="k">卡位龙</div>
+          <div className="v" style={{ fontSize: 20 }}>{stats.kawci || '无'}</div>
+          <div className="note">{chief.length > 1 ? `同高度 ${chief.length} 只中质量分最高` : '无同高度竞争'}</div>
         </div>
         <div className="card">
           <div className="k">主线题材</div>
@@ -91,8 +117,8 @@ export default function LeadersPage({ onOpenStock }) {
           <div className="note">共 {stats.themes} 个题材有连板</div>
         </div>
         <div className="card">
-          <div className="k">昨日掉出</div>
-          <div className={`v ${stats.droppedCount > 0 ? 'down' : ''}`}>{stats.droppedCount}</div>
+          <div className="k">断板 / 梯队风险</div>
+          <div className={`v ${stats.chiefBroken ? 'down' : ''}`}>{stats.droppedCount}</div>
           <div className="note">
             {stats.chiefBroken
               ? <span className="down">总龙头断板 → 警惕退潮</span>
@@ -100,6 +126,24 @@ export default function LeadersPage({ onOpenStock }) {
           </div>
         </div>
       </div>
+
+      {(stats.chiefBroken || (stats.gapThemes || []).length > 0) && (
+        <div className="panel" style={{ marginBottom: 12, borderColor: stats.chiefBroken ? 'var(--down)' : 'var(--warn)' }}>
+          <div className="lp-alert">
+            {stats.chiefBroken && (
+              <div className="down">
+                <b>总龙头断板</b>：昨日 {data.prevMaxLianban} 板龙头今日未连板，全场高度降至 {data.globalMaxLianban} 板。
+                次日不接力，等新周期启动信号（首板数量回升 + 新题材出现）。
+              </div>
+            )}
+            {(stats.gapThemes || []).length > 0 && (
+              <div className="warm-hint">
+                <b>梯队断层</b>：{stats.gapThemes.join('、')} 存在高度断层（缺中间板），持续性差，慎追。
+              </div>
+            )}
+          </div>
+        </div>
+      )}
 
       {!stats.hasPrev && (
         <div className="hint" style={{ marginBottom: 10 }}>
@@ -126,20 +170,36 @@ export default function LeadersPage({ onOpenStock }) {
           <span className="muted" style={{ fontSize: 11, fontWeight: 'normal', marginLeft: 8 }}>各题材最高板（只统计 2 板以上）· ★ = 主线</span>
         </h3>
         <table className="tbl compact">
-          <thead><tr><th>题材</th><th>高度</th><th>家数</th><th>分支龙头</th><th>龙二</th><th>状态</th></tr></thead>
+          <thead><tr><th>题材</th><th>高度</th><th>家数</th><th>梯队</th><th>分支龙头</th><th>龙二</th><th>状态</th></tr></thead>
           <tbody>
             {branches.map((b) => (
               <tr key={b.industry}>
                 <td className="name">{b.isMain ? '★ ' : ''}{b.industry}</td>
                 <td><span className={`lb ${b.maxLianban >= 3 ? 'lb-high' : ''}`}>{b.maxLianban}板</span></td>
                 <td>{b.count}</td>
+                <td className="reasons-cell">
+                  {(b.stocks || []).map((s, i) => (
+                    <span key={s.code}>
+                      {i > 0 && <span className="muted"> · </span>}
+                      <span className="name-link" onClick={() => onOpenStock?.(s.code, s.name)}>{s.name}</span>
+                      <span className="muted">{s.lianban}板</span>
+                    </span>
+                  ))}
+                  {(b.gaps || []).length > 0 && (
+                    <em className="lp-tag lp-t-gap" style={{ marginLeft: 6 }}>缺{(b.gaps || []).join('/')}</em>
+                  )}
+                </td>
                 <td>
                   {b.leader && (
-                    <button className="link" onClick={() => onOpenStock?.(b.leader.code, b.leader.name)}>
-                      {b.leader.name}
-                    </button>
+                    <>
+                      <button className="link" onClick={() => onOpenStock?.(b.leader.code, b.leader.name)}>
+                        {b.leader.name}
+                      </button>
+                      <span className={`lp-q ${b.leader.quality >= 75 ? 'lp-q-high' : b.leader.quality >= 60 ? 'lp-q-mid' : 'lp-q-low'}`} style={{ marginLeft: 5 }}>
+                        {b.leader.quality}分
+                      </span>
+                    </>
                   )}
-                  {b.leader && b.leader.sealFund > 0 && <span className="muted"> 封单 {b.leader.sealFund}亿</span>}
                 </td>
                 <td className="muted">{b.second ? `${b.second.name} ${b.second.lianban}板` : '-'}</td>
                 <td>
@@ -151,9 +211,13 @@ export default function LeadersPage({ onOpenStock }) {
                 </td>
               </tr>
             ))}
-            {branches.length === 0 && <tr><td colSpan={6} className="empty">今日无 2 板以上股票</td></tr>}
+            {branches.length === 0 && <tr><td colSpan={7} className="empty">今日无 2 板以上股票</td></tr>}
           </tbody>
         </table>
+        <div className="hint" style={{ marginTop: 8 }}>
+          质量分综合 连板高度/封流比/封板时间/题材地位/梯队支撑 五个维度；同高度多只时质量分最高者为卡位龙。
+          断层 = 有 N 板但缺 N-1 板，梯队不完整持续性差。
+        </div>
       </div>
 
       {dropped.length > 0 && (
@@ -166,8 +230,11 @@ export default function LeadersPage({ onOpenStock }) {
             <thead><tr><th>股票</th><th>题材</th><th>昨板高</th><th>原层级</th><th>昨封单</th></tr></thead>
             <tbody>
               {dropped.map((d) => (
-                <tr key={d.code}>
-                  <td className="name">{d.name}</td>
+                <tr key={d.code} className={d.wasTop ? 'row-today' : ''}>
+                  <td className="name">
+                    {d.name}
+                    {d.wasTop && <em className="lp-tag lp-t-gap" style={{ marginLeft: 5 }}>高度真空</em>}
+                  </td>
                   <td className="muted">{d.industry}</td>
                   <td><span className="lb lb-high">{d.lianban}板</span></td>
                   <td className="muted">{d.wasTier ? { chief: '总龙头', second: '龙二', branch: '分支龙头' }[d.wasTier] : '-'}</td>
