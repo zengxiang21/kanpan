@@ -62,14 +62,15 @@
 ## 技术架构
 
 ```
-前端   React 19 + Vite + JSX + KLineChart(规划) + ECharts(连板分布)
-后端   Node.js 24 + Express + SSE 推送（单进程，无需数据库即可跑 M1）
+前端   React 19 + Vite + JSX + ECharts(连板分布)
+后端   Node.js + Express + SSE 推送（单进程，无需数据库）
 数据   三源容灾，主源失败自动切换并每 10 分钟探测恢复：
        ├ 东财 push2/push2ex（指数涨跌家数、榜单、涨停/炸板/跌停池，3 秒级）
        ├ 新浪 vip 行情（榜单/全市场扫描兜底涨跌家数）+ hq 指数
        └ 腾讯 qt.gtimg.cn（自选股快照，含量比字段）
        空响应按"软封禁"处理，强制走备源（东财风控会返回 200 + 空 diff）
-计算   实时炸板率/连板分布/情绪标签/两市量能对比（昨日基准收盘落盘 data/daily.json）
+计算   实时炸板率/连板分布/情绪标签/两市量能对比（昨日基准收盘落盘 server/data/daily.json）
+情绪   情绪周期六阶段判定收口在 server/src/emotion.js（盘前页/复盘页/计划卡同源）
 调度   交易时段感知：交易/竞价时段 3s tick + 10s 涨停池；收盘后 60s 低频
 ```
 

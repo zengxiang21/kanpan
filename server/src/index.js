@@ -10,8 +10,11 @@ import { historyState, getKline } from './history.js';
 import { buildReview, saveReviewIfNeeded, latestSavedReview, buildPlans, reviewDates, reviewByDate } from './review.js';
 import { runBacktest } from './backtest.js';
 import { peersAnalysis } from './peers.js';
-import { getPlanCache, buildPlansWithTimeout } from './plancache.js';
+import { getPlanCache, buildPlansWithTimeout, refreshPlanCache } from './plancache.js';
 import { industryOf } from './industries.js';
+import { buildHeatmap } from './heatmap.js';
+import { buildLeaderPool } from './leaderpool.js';
+import { buildMacroCalendar } from './macro.js';
 import { getUser, saveUser } from './userstore.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -95,6 +98,8 @@ app.get('/api/auction', async (req, res) => {
     auctionCache.at = Date.now();
   }
   const result = auctionCache.data;
+  // 同步给 plan 推荐用：竞价方向强度加成依赖它（此前只存在模块局部变量里，加成恒为 0）
+  state.auctionCache = result;
   if ((phase === 'auction_end' || phase === 'open') && state.tradingDay) {
     saveAuctionSnapshot(state.tradingDay, {
       date: state.tradingDay, savedAt: Date.now(), mode: result.mode,
@@ -102,6 +107,24 @@ app.get('/api/auction', async (req, res) => {
     });
   }
   res.json(result);
+});
+
+// 大盘云图：全市场按行业分格的涨跌热力图（基于本地全市场快照，无额外请求）
+app.get('/api/heatmap', (req, res) => {
+  const hm = buildHeatmap(state.marketSweep, state.pools);
+  if (!hm) return res.json({ groups: [], meta: { total: 0, industries: 0, updatedAt: null, note: '等待全市场快照' } });
+  res.json(hm);
+});
+
+// 美国经济数据日历（C4）：官方固定规律推算，无免费结构化源
+app.get('/api/macro', (req, res) => {
+  const days = Math.min(90, Math.max(1, Number(req.query.days) || 30));
+  res.json(buildMacroCalendar(days));
+});
+
+// 龙头分层动态池（总龙头/龙二/分支龙头 + 进出状态）
+app.get('/api/leaders', (req, res) => {
+  res.json(buildLeaderPool(state.pools, state.tradingDay));
 });
 
 // 板块内对比：同行业排名 + 能不能买评价
@@ -308,7 +331,55 @@ app.get('*', (req, res, next) => {
   res.sendFile(path.join(webDist, 'index.html'));
 });
 
+// ---------- 交易计划自动推荐缓存（此前 refreshPlanCache 从未被调用，/api/plan 恒返回空） ----------
+async function refreshPlans() {
+  try {
+    await refreshPlanCache(state);
+  } catch (e) {
+    console.error('[plan]', e.message);
+  }
+}
+setInterval(refreshPlans, 60_000);
+
+// ---------- 诊断：手动触发交易计划计算 ----------
+app.get('/api/debug/plan', async (req, res) => {
+  const t0 = Date.now();
+  try {
+    const { buildAutoPlans } = await import('./plancache.js');
+    const r = await buildAutoPlans(state);
+    res.json({
+      ok: true, ms: Date.now() - t0,
+      tickNull: state.tick == null, sweepNull: state.marketSweep == null,
+      sweepRows: state.marketSweep?.rows?.length ?? 0,
+      ztCount: state.pools.zt.length,
+      plans: (r.plans || []).map((p) => ({ code: p.code, name: p.name, stage: p.stage, from: p.from })),
+    });
+  } catch (e) {
+    res.status(500).json({ ok: false, ms: Date.now() - t0, error: e.message, stack: String(e.stack).split('\n').slice(0, 5) });
+  }
+});
+
+// ---------- 诊断：手动触发收盘复盘落盘 ----------
+app.get('/api/debug/savereview', (req, res) => {
+  try {
+    const before = reviewDates().length;
+    saveReviewIfNeeded(state, marketPhase());
+    const after = reviewDates().length;
+    res.json({
+      ok: true, phase: marketPhase(), before, after,
+      tickNull: state.tick == null,
+      ztCount: state.tick?.ztCount ?? null,
+      indicesLen: state.tick?.indices?.length ?? 0,
+      tradingDay: state.tradingDay,
+    });
+  } catch (e) {
+    res.status(500).json({ ok: false, error: e.message });
+  }
+});
+
 app.listen(PORT, '0.0.0.0', () => {
   console.log(`[kanpan] http://127.0.0.1:${PORT}`);
   startScheduler(broadcast);
+  // 首帧行情就绪后立刻算一次推荐，不用等 60 秒
+  setTimeout(refreshPlans, 20_000);
 });

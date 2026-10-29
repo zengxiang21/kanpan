@@ -15,6 +15,8 @@ import JournalPage from './components/JournalPage.jsx';
 import StockDetail from './components/StockDetail.jsx';
 import ReviewPage from './components/ReviewPage.jsx';
 import SectorsPage from './components/SectorsPage.jsx';
+import HeatmapPage from './components/HeatmapPage.jsx';
+import LeadersPage from './components/LeadersPage.jsx';
 
 const MENU = [
   {
@@ -28,9 +30,11 @@ const MENU = [
     group: '盘中',
     items: [
       { key: 'emotion', label: '情绪总览', comp: EmotionPanel },
+      { key: 'heatmap', label: '大盘云图', comp: HeatmapPage },
       { key: 'sectors', label: '板块轮动', comp: SectorsPage },
       { key: 'ranks', label: '市场扫描', comp: (p) => <Ranks {...p} />, badge: 'ranks' },
       { key: 'ztpool', label: '涨停天梯', comp: ZtPool, badge: 'zt' },
+      { key: 'leaders', label: '龙头分层', comp: LeadersPage },
       { key: 'scan', label: '形态选股', comp: ScanPage },
       { key: 'reflow', label: '龙头回流', comp: (p) => <ScanPage {...p} section="reflow" /> },
       { key: 'watch', label: '自选盯盘', comp: Watchlist },

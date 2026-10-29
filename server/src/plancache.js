@@ -22,7 +22,8 @@ function dirBoostFn(auction) {
 }
 
 export async function buildAutoPlans(state) {
-  if (!state.marketSweep) return { plans: [], autoFrom: [] };
+  // tick 未就绪时不要算：buildReview 会把空数据算成"震荡"，污染缓存
+  if (!state.marketSweep || !state.tick) return { plans: [], autoFrom: [] };
   const scan = scanAll(state.marketSweep);
   const reflow = reflowScan(state.marketSweep, state.pools);
   const auction = state.auctionCache || null;
@@ -56,6 +57,8 @@ export async function buildAutoPlans(state) {
 // 供调度器调用：带 15 秒硬超时（挂起只会丢一轮，绝不拖累接口）
 export async function refreshPlanCache(state) {
   if (planBusy) return;
+  // 行情未就绪：不写缓存（返回空计划比返回"假震荡"强）
+  if (!state.tick || !state.marketSweep) return;
   planBusy = true;
   try {
     const result = await Promise.race([

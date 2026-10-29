@@ -1,11 +1,33 @@
-node_modules/
+﻿node_modules/
 dist/
-data/
 *.log
 .DS_Store
 __pycache__/
 .env
-*.json
-!docs/cloud/data.json  
+
+# 运行期数据目录：本地历史库 kline.json（十几 MB）、每日复盘存档、竞价快照、用户数据
+# 注意两点：
+# 1) 不要用宽泛的 `data/`，会连带忽略 scripts 下合法 json
+# 2) 不要再用 `*.json`，那会让以后新增的任何 json 配置/映射表静默不进库
+#    （package.json 现在能进库只因「先 track 后加 ignore」，新文件没这个保护）
+server/data/
+
+# GitHub Pages 演示站数据：本地服务每 5 分钟推送的快照，必须进库
+!docs/cloud/data.json
+
+# 仓库根目录的调试数据转存（a.json / f2.json / pl*.json / scz*.json ... 一次性排查产物，勿入库）
+/*.json
+
+# 早期残留：Pages 数据后来改走 docs/cloud/，这个目录已废弃
+/cloud/
+
+# scripts 里的一次性补丁脚本（字符串替换式，已生效、不可重跑）
+/scripts/patch-*.mjs
+/scripts/diag*.mjs
+/scripts/probe*.mjs
+/scripts/direct-*.mjs
+/scripts/swapapi.mjs
+/scripts/fixjson.mjs
+/scripts/ghdevice.mjs
 
 .git-cred-tmp

@@ -289,6 +289,100 @@ tr.clickable { cursor: pointer; }
 @media (max-width: 768px) {
   .shell { flex-direction: column; }
   .sidebar {
+.quote-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 10px; }
+.quote-card { background: var(--panel2); border: 1px solid var(--border); border-left: 3px solid var(--accent); border-radius: 8px; padding: 10px 12px; }
+.quote-who { font-size: 11px; color: var(--accent); margin-bottom: 4px; font-weight: 600; }
+.quote-text { font-size: 13px; line-height: 1.7; }
+
+/* ============ 大盘云图 ============ */
+.chip { background: var(--panel2); border: 1px solid var(--border); color: var(--muted); border-radius: 20px; padding: 3px 11px; font-size: 12px; cursor: pointer; }
+.chip:hover { color: var(--text); border-color: #444c56; }
+.chip.on { background: var(--accent); border-color: var(--accent); color: #0d1117; font-weight: 600; }
+
+.hm-toolbar { display: flex; gap: 18px; flex-wrap: wrap; align-items: center; margin-bottom: 8px; }
+.hm-group { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; }
+.hm-lbl { font-size: 11px; color: var(--muted); }
+
+.hm-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(112px, 1fr)); gap: 6px; }
+
+.hm-cell { position: relative; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 1px; min-height: 62px; padding: 7px 4px; border: 1px solid rgba(255, 255, 255, 0.07); border-radius: 6px; cursor: pointer; color: #fff; text-align: center; overflow: hidden; }
+.hm-cell:hover { border-color: #fff; transform: translateY(-1px); }
+.hm-name { font-size: 12px; font-weight: 600; line-height: 1.25; word-break: break-all; }
+.hm-pct { font-size: 13px; font-weight: 700; font-variant-numeric: tabular-nums; }
+.hm-sub { font-size: 10px; opacity: 0.85; font-variant-numeric: tabular-nums; }
+.hm-sub .up, .hm-sub .down { color: #fff; }
+.hm-zt { font-style: normal; margin-left: 4px; background: rgba(0, 0, 0, 0.35); border-radius: 3px; padding: 0 3px; }
+
+/* 涨（红）——从浅到深 */
+.hm-p1  { background: #5c2320; }
+.hm-p3  { background: #7d2b26; }
+.hm-p5  { background: #a3352d; }
+.hm-p7  { background: #c33f33; }
+.hm-flat { background: var(--panel2); color: var(--muted); }
+
+/* 映射兜底组：虚线边框 + 斜纹，一眼看出不是真行业 */
+/* 映射兜底组：虚线边框 + 斜纹，一眼看出不是真行业 */
+.hm-cell.hm-unmapped { border-style: dashed; border-color: #6e7681; opacity: 0.75; }
+.hm-cell.hm-unmapped:hover { opacity: 1; }
+
+/* ============ 龙头分层 ============ */
+.lp-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 8px; }
+.lp-card { display: flex; flex-direction: column; gap: 4px; text-align: left; background: var(--panel2); border: 1px solid var(--border); border-left-width: 3px; border-radius: 6px; padding: 9px 11px; cursor: pointer; }
+.lp-card:hover { border-color: var(--accent); }
+.lp-card.chief { border-left-color: #e5484d; }
+.lp-card.second { border-left-color: #d29922; }
+.lp-head { display: flex; align-items: baseline; justify-content: space-between; gap: 6px; }
+.lp-head b { font-size: 14px; }
+.lp-tags { display: flex; gap: 5px; flex-wrap: wrap; align-items: center; font-size: 10px; }
+.lp-tags em { font-style: normal; }
+
+/* ============ E1 深度复盘 ============ */
+.zha-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); gap: 8px; }
+.zha-box { background: var(--panel2); border: 1px solid var(--border); border-radius: 6px; padding: 9px 11px; }
+.zha-box.zero { opacity: 0.55; }
+.zha-head { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 2px; }
+.zha-head b { font-size: 13px; }
+.fc-watch { display: flex; gap: 6px; flex-wrap: wrap; }
+
+/* 宏观日历：今日事件高亮 */
+.tbl tr.row-today { background: rgba(229, 72, 77, 0.12); }
+.tbl tr.row-today td.name { color: var(--up); font-weight: 600; }
+
+.zha-row { display: flex; justify-content: space-between; gap: 8px; font-size: 12px; padding: 2px 0; }
+.fc-watch { display: flex; gap: 6px; flex-wrap: wrap; }
+
+.lp-lb { font-size: 12px; font-weight: 700; color: var(--up); }
+.lp-meta { display: flex; gap: 8px; font-size: 11px; }
+.lp-tags { display: flex; gap: 5px; flex-wrap: wrap; align-items: center; font-size: 10px; }
+.lp-tags em { font-style: normal; }
+
+.hm-cell.hm-unmapped { border-style: dashed; border-color: #6e7681; opacity: 0.75; }
+.hm-cell.hm-unmapped:hover { opacity: 1; }
+
+.hm-p10 { background: #e5484d; }
+/* 跌（绿）——从浅到深 */
+.hm-n1  { background: #17402f; }
+.hm-n3  { background: #1a563d; }
+.hm-n5  { background: #1d6f4d; }
+.hm-n7  { background: #228a5f; }
+.hm-n10 { background: #2ea874; }
+.hm-flat { background: var(--panel2); color: var(--muted); }
+
+/* 档位内深浅：深一档用更实的色，弱一档略透明 */
+.hm-s-p { filter: saturate(1.25) brightness(1.08); }
+.hm-s-n { filter: saturate(1.25) brightness(0.94); }
+
+.hm-detail { display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 12px; }
+.hm-detail .k { font-size: 11px; color: var(--muted); margin-bottom: 3px; }
+.link { background: none; border: none; padding: 0; color: var(--text); cursor: pointer; font-size: 13px; text-align: left; }
+.link:hover { color: var(--accent); text-decoration: underline; }
+
+@media (max-width: 720px) {
+  .hm-grid { grid-template-columns: repeat(auto-fill, minmax(88px, 1fr)); }
+  .hm-cell { min-height: 54px; }
+  .hm-name { font-size: 11px; }
+}
+
     position: fixed; z-index: 50; bottom: 0; left: 0; right: 0; top: auto;
     width: 100%; height: auto; flex-direction: row; align-items: center;
     overflow-x: auto; border-right: none; border-top: 1px solid var(--border);

@@ -2,23 +2,12 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { getIndices, getRank, getPool, sinaFullSweep, sourceStatus } from './em.js';
+import { getIndices, getRank, getPool, sinaFullSweep, sourceStatus, getSentiment, getSectorBoard } from './em.js';
 import { ensureHistoryStarted } from './history.js';
 import { loadIndustryMap, ensureIndustryMapStarted, industryState } from './industries.js';
 import { updateAuctionCloses, saveAuctionSnapshot, getAuctionByDate } from './auctionstore.js';
 import { auctionScan } from './scan.js';
-
-// 情绪周期定位（与复盘页同口径）
-function cycleStageOf({ ztCount, dtCount, zbCount, zhaRate, maxLianban, premium }) {
-  const prem = premium ? premium.avg : null;
-  if (dtCount > ztCount && dtCount >= 10) return ['退潮', '跌停多于涨停，亏钱效应扩散，多看少动'];
-  if (ztCount < 20 && (prem != null && prem < 1)) return ['冰点', '涨停稀少且无溢价，等首板尝试新方向'];
-  if (ztCount >= 100 && maxLianban >= 5 && prem != null && prem >= 2) return ['高潮', '情绪顶点，持有为主，新开仓只做主流龙头'];
-  if (zhaRate != null && zhaRate >= 0.35 && maxLianban >= 3) return ['分歧', '炸板率升高，高位分歧，做分歧转一致的卡位'];
-  if (ztCount >= 50 && maxLianban >= 3) return ['发酵', '梯队完整，主流题材可打龙头与跟风'];
-  if (ztCount >= 30) return ['启动', '首板增多，试探性参与新题材首板'];
-  return ['震荡', '情绪中性，控制仓位，只做确定性机会'];
-}
+import { cycleStage } from './emotion.js';
 
 function auctionSavedToday(day) {
   return !!getAuctionByDate(day);
@@ -36,6 +25,8 @@ export const state = {
   prevAmount: null,
   updatedAt: null,
   marketSweep: null, // 全市场快照（新浪分页扫描，约 15~20 秒一轮）
+  sentiment: null,   // 舆论词频缓存（E1 明日主线推演用，reviewOnce 周期性刷新）
+  sectors: null,     // 板块涨幅缓存（同上）
 };
 
 // ---------- 时间工具（北京时间） ----------
@@ -303,6 +294,9 @@ export async function refreshTick() {
     premiumAvg: premium ? premium.avg : null,
   });
 
+  // 情绪周期定位（统一从 emotion.js 取，与复盘页/盘前页/计划卡同源）
+  const cycle = cycleStage({ ztCount, dtCount: state.pools.dt.length, zhaRate, maxLianban, premium });
+
   const { minutes, dow } = shParts();
   if (amount2m > 0 && isTradingDow(dow) && minutes >= 905) saveDaily(state.tradingDay, amount2m);
 
@@ -321,7 +315,9 @@ export async function refreshTick() {
     maxLianban,
     lianbanDist: dist,
     emotionLabel: emotionLabel(ztCount, zhaRate ?? 0, maxLianban),
-    cycleStage: cycleStageOf({ ztCount, dtCount: state.pools.dt.length, zbCount, zhaRate, maxLianban, premium })[0],
+    cycleStage: cycle.stage,
+    cycleDesc: cycle.desc,
+    cyclePlaybook: cycle.playbook,
     premium, jinji, env, dist13, premiumDetail,
     gainers: gainRes.data,
     volRatio: vrRes.data,
@@ -409,6 +405,7 @@ export function startScheduler(broadcast) {
       await refreshTick();
       if (!poolsLoaded) await refreshPools();
       state.stats.lastTickAt = Date.now();
+      state.updatedAt = Date.now();
       broadcast('tick', state.tick);
     } catch (e) {
       console.error('[tick]', e.message); state.stats.lastTickErr = e.message;
@@ -454,6 +451,13 @@ export function startScheduler(broadcast) {
   async function reviewOnce() {
     try {
       saveReviewIfNeeded(state, marketPhase());
+      // E1：周期性刷新舆论词频 / 板块涨幅，供 buildReview 的明日主线推演同步读取
+      //      （buildReview 是同步函数，不能自己 await，所以由这里预取缓存）
+      if (Date.now() - lastForecastRefresh > 5 * 60_000) {
+        lastForecastRefresh = Date.now();
+        try { state.sentiment = await getSentiment(); } catch { /* 可选数据 */ }
+        try { state.sectors = await getSectorBoard(); } catch { /* 可选数据 */ }
+      }
       // 9:25-9:30 竞价定稿：无论页面是否打开，自动落盘当日竞价雷达
       const ph = marketPhase();
       if (ph === 'auction_end' && state.tradingDay && !auctionSavedToday(state.tradingDay) && state.marketSweep) {
@@ -487,6 +491,7 @@ export function startScheduler(broadcast) {
   }
 
   let lastCloudPush = 0;
+  let lastForecastRefresh = 0;
 
   // 全部用 setInterval：回调抛错或单次挂起都不会终止后续调度
   setInterval(() => { tickOnce(); }, phaseIntervals().tick);

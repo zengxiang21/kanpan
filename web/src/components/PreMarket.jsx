@@ -44,6 +44,7 @@ export default function PreMarket({ tick }) {
   const [us, setUs] = useState([]);
   const [news, setNews] = useState([]);
   const [sent, setSent] = useState(null);
+  const [macro, setMacro] = useState(null);
 
   useEffect(() => {
     // 美股/全球指数 5 秒快刷（美股盘中是实时盘）；快讯/词频 60 秒
@@ -54,6 +55,7 @@ export default function PreMarket({ tick }) {
     const slow = () => {
       api('news').then((d) => Array.isArray(d) && setNews(d)).catch(() => {});
       api('sentiment').then((d) => d && d.themes && setSent(d)).catch(() => {});
+      api('macro?days=30').then((d) => d && setMacro(d)).catch(() => {});
     };
     fast();
     slow();
@@ -66,6 +68,9 @@ export default function PreMarket({ tick }) {
   const env = tick?.env;
   const prem = tick?.premium;
   const jinji = tick?.jinji || [];
+  const cycleStage = tick?.cycleStage || null;
+  const cycleDesc = tick?.cycleDesc || '';
+  const cyclePlaybook = tick?.cyclePlaybook || '';
 
   return (
     <div className="page">
@@ -100,6 +105,23 @@ export default function PreMarket({ tick }) {
           ) : <div className="empty">等待行情数据…</div>}
         </div>
       </div>
+
+      {cycleStage && (
+        <div className="panel" style={{ marginBottom: 12 }}>
+          <h3>情绪周期定位与今日打法（超短知识库 · 情绪周期六阶段）</h3>
+          <div className="plan-head">
+            <span className="v label lab-warm" style={{ fontSize: 20 }}>{cycleStage}</span>
+            <span style={{ fontSize: 13, lineHeight: 1.8 }}>
+              {cyclePlaybook || cycleDesc}
+            </span>
+          </div>
+          <div className="hint">
+            判定依据：{cycleDesc || '涨停数/炸板率/最高板/昨日溢价'}
+            （涨停 {tick?.ztCount ?? '-'} · 炸板率 {tick?.zhaRate != null ? (tick.zhaRate * 100).toFixed(0) + '%' : '-'} · 最高 {tick?.maxLianban ?? '-'} 板）
+            —— 与收盘复盘页同口径；配合竞价雷达验证方向强度
+          </div>
+        </div>
+      )}
 
       <div className="cards">
         <div className="card">
@@ -167,6 +189,40 @@ export default function PreMarket({ tick }) {
           {us.length === 0 && <div className="empty">加载中…</div>}
         </div>
         <div className="hint">隔夜大涨方向 = 今日 A 股对应概念的抢筹预期，到竞价雷达里验证</div>
+      </div>
+
+      <div className="panel" style={{ marginBottom: 12 }}>
+        <h3>
+          美国宏观数据日历（未来 30 天）
+          <span className="page-tag">盘前规避用</span>
+        </h3>
+        {(macro?.events || []).length === 0 ? (
+          <div className="empty">未来 30 天无已知宏观数据发布</div>
+        ) : (
+          <table className="tbl compact">
+            <thead><tr><th>日期</th><th>时间(北京)</th><th>事件</th><th>重要性</th><th>影响</th></tr></thead>
+            <tbody>
+              {(macro?.events || []).slice(0, 12).map((e) => (
+                <tr key={e.date + e.title} className={e.daysAhead === 0 ? 'row-today' : ''}>
+                  <td className="name" style={{ width: 92 }}>
+                    {e.date}
+                    {e.daysAhead === 0 && <em className="label lab-hot" style={{ marginLeft: 4 }}>今日</em>}
+                    {e.daysAhead > 0 && e.daysAhead <= 2 && <em className="label lab-warm" style={{ marginLeft: 4 }}>{e.daysAway || e.daysAhead}天后</em>}
+                  </td>
+                  <td className="muted" style={{ width: 70 }}>{e.time}</td>
+                  <td style={{ width: 150 }}>{e.title}</td>
+                  <td style={{ width: 60 }}>{'★'.repeat(e.importance)}</td>
+                  <td className="muted reasons-cell">{e.note}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        )}
+        <div className="hint" style={{ marginTop: 8 }}>
+          {macro?.note}
+          <br />
+          <span className="muted">数据来源：{macro?.source}。无前值/预期值/实际值（免费结构化源 14 个全部不可用，见 ROADMAP C4）。</span>
+        </div>
       </div>
 
       <div className="row2">

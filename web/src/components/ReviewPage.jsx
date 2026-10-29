@@ -141,6 +141,92 @@ export default function ReviewPage({ tick, watch, onOpenStock }) {
             </ol>
           </div>
 
+          {/* E1 深度复盘：题材生命周期 */}
+          <div className="panel">
+            <h3>题材生命周期（逐题材判定 · 不是全市场一个阶段）</h3>
+            <table className="tbl compact">
+              <thead><tr><th>题材</th><th>阶段</th><th>涨停</th><th>炸板</th><th>最高板</th><th>均板</th><th>封单(亿)</th><th>龙头</th><th>判定依据</th></tr></thead>
+              <tbody>
+                {(review.deep?.lifecycle || []).slice(0, 20).map((lc) => (
+                  <tr key={lc.industry}>
+                    <td className="name">{lc.industry}</td>
+                    <td><span className={`label ${lc.phase === '高潮' ? 'lab-hot' : lc.phase === '发酵' ? 'lab-warm' : lc.phase === '启动' ? 'lab-cool' : lc.phase === '退潮' ? 'lab-freeze' : 'lab-warm'}`}>{lc.phase}</span></td>
+                    <td className="up bold">{lc.ztCount}</td>
+                    <td className={lc.zhaCount > 0 ? 'down' : 'muted'}>{lc.zhaCount}</td>
+                    <td className="bold">{lc.maxLianban || '-'}</td>
+                    <td className="muted">{lc.avgLianban || '-'}</td>
+                    <td className="muted">{lc.sealFund || '-'}</td>
+                    <td>{lc.top || '-'}</td>
+                    <td className="muted reasons-cell">{lc.note}</td>
+                  </tr>
+                ))}
+                {(review.deep?.lifecycle || []).length === 0 && <tr><td colSpan={9} className="empty">暂无涨停数据</td></tr>}
+              </tbody>
+            </table>
+            {(review.deep?.lifecycle || []).length > 20 && (
+              <div className="hint" style={{ marginTop: 6 }}>仅显示前 20 个题材（共 {review.deep.lifecycle.length} 个，已按阶段与涨停家数排序）</div>
+            )}
+            <div className="hint" style={{ marginTop: 8 }}>
+      同一交易日不同题材处在不同阶段：只做"发酵/高潮"方向的龙头，"退潮/分歧"方向回避。
+      断板题材标"退潮"，是回避而不是抄底。
+            </div>
+          </div>
+
+          {/* E1 深度复盘：炸板归因 */}
+          <div className="panel">
+            <h3>炸板归因（{review.emotion?.zbCount ?? 0} 只炸板 · 分清龙头分歧还是方向退潮）</h3>
+            <div className="zha-grid">
+              {Object.entries(review.deep?.zhaAttr || {}).map(([k, b]) => (
+                <div className={`zha-box ${b.count === 0 ? 'zero' : ''}`} key={k}>
+                  <div className="zha-head">
+                    <b>{b.label}</b>
+                    <span className={b.count > 0 ? 'bold' : 'muted'}>{b.count}</span>
+                  </div>
+                  <div className="muted" style={{ fontSize: 11 }}>{b.desc}</div>
+                  {b.stocks.slice(0, 6).map((s) => (
+                    <div className="zha-row" key={s.code}>
+                      <span className="name-link" onClick={() => onOpenStock(s.code, s.name)}>{s.name}</span>
+                      <span className="muted">{s.lianban ? `${s.lianban}板` : '首板'} · 开{s.zhaCount}次</span>
+                    </div>
+                  ))}
+                  {b.count > 6 && <div className="muted" style={{ fontSize: 11 }}>…另 {b.count - 6} 只</div>}
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* E1 深度复盘：明日主线推演 */}
+          <div className="panel">
+            <h3>明日主线推演（连板梯队 × 舆论词频 × 板块涨幅 交叉验证）</h3>
+            {(review.deep?.forecast?.mainlines || []).length > 0 ? (
+              <table className="tbl compact">
+                <thead><tr><th>方向</th><th>评分</th><th>支撑理由</th></tr></thead>
+                <tbody>
+                  {review.deep.forecast.mainlines.map((m, i) => (
+                    <tr key={m.direction}>
+                      <td className="name">{i === 0 ? '🥇 ' : ''}{m.direction}</td>
+                      <td className={`bold ${m.score > 0 ? 'up' : 'down'}`}>{m.score}</td>
+                      <td className="muted reasons-cell">{m.reasons.join(' · ')}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            ) : <div className="empty">今日无 2 板以上梯队，明日以观察为主</div>}
+            {(review.deep?.forecast?.watchOnly || []).length > 0 && (
+              <>
+                <h3 style={{ marginTop: 10 }}>仅观察（有舆论/涨幅但无涨停接力，不动手）</h3>
+                <div className="fc-watch">
+                  {review.deep.forecast.watchOnly.map((m) => (
+                    <span className="dir-tag" key={m.direction} title={m.reasons.join(' · ')}>
+                      {m.direction} <b>{m.score}</b>
+                    </span>
+                  ))}
+                </div>
+              </>
+            )}
+            <div className="hint" style={{ marginTop: 8 }}>{review.deep?.forecast?.note}</div>
+          </div>
+
           <div className="row2">
             <div className="panel">
               <h3>今日题材热度（涨停家数排序）</h3>
