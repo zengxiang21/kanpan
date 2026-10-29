@@ -4,6 +4,15 @@ import { fmtPrice, fmtPct, pctCls, fmtAmount } from '../lib/format.js';
 import { api, CLOUD } from '../lib/api.js';
 import { useFlash } from '../lib/useFlash.js';
 
+// 题材生命周期阶段 → 徽章配色（复用 .lb / .lb-high 系，保持全站一致）
+const PHASE_LB = {
+  高潮: 'lb-high',   // 红（最热）
+  分歧: 'lb-warn',   // 橙
+  发酵: 'lb-green',  // 绿（健康）
+  启动: '',          // 默认
+  退潮: 'lb-cool',   // 蓝（冷）
+};
+
 function PlanCard({ plan, onOpenStock }) {
   return (
     <div className="panel plan-card">
@@ -150,9 +159,9 @@ export default function ReviewPage({ tick, watch, onOpenStock }) {
                 {(review.deep?.lifecycle || []).slice(0, 20).map((lc) => (
                   <tr key={lc.industry}>
                     <td className="name">{lc.industry}</td>
-                    <td><span className={`label ${lc.phase === '高潮' ? 'lab-hot' : lc.phase === '发酵' ? 'lab-warm' : lc.phase === '启动' ? 'lab-cool' : lc.phase === '退潮' ? 'lab-freeze' : 'lab-warm'}`}>{lc.phase}</span></td>
+                    <td><span className={`lb ${PHASE_LB[lc.phase] || ''}`}>{lc.phase}</span></td>
                     <td className="up bold">{lc.ztCount}</td>
-                    <td className={lc.zhaCount > 0 ? 'down' : 'muted'}>{lc.zhaCount}</td>
+                    <td className={lc.zhaCount > 0 ? 'warn' : 'muted'}>{lc.zhaCount}</td>
                     <td className="bold">{lc.maxLianban || '-'}</td>
                     <td className="muted">{lc.avgLianban || '-'}</td>
                     <td className="muted">{lc.sealFund || '-'}</td>
@@ -166,33 +175,34 @@ export default function ReviewPage({ tick, watch, onOpenStock }) {
             {(review.deep?.lifecycle || []).length > 20 && (
               <div className="hint" style={{ marginTop: 6 }}>仅显示前 20 个题材（共 {review.deep.lifecycle.length} 个，已按阶段与涨停家数排序）</div>
             )}
-            <div className="hint" style={{ marginTop: 8 }}>
-      同一交易日不同题材处在不同阶段：只做"发酵/高潮"方向的龙头，"退潮/分歧"方向回避。
-      断板题材标"退潮"，是回避而不是抄底。
-            </div>
+            <div className="hint" style={{ marginTop: 8 }}>同一交易日不同题材处在不同阶段：只做"发酵/高潮"方向的龙头，"退潮/分歧"方向回避。断板题材标"退潮"，是回避而不是抄底。</div>
           </div>
 
           {/* E1 深度复盘：炸板归因 */}
           <div className="panel">
             <h3>炸板归因（{review.emotion?.zbCount ?? 0} 只炸板 · 分清龙头分歧还是方向退潮）</h3>
-            <div className="zha-grid">
-              {Object.entries(review.deep?.zhaAttr || {}).map(([k, b]) => (
-                <div className={`zha-box ${b.count === 0 ? 'zero' : ''}`} key={k}>
-                  <div className="zha-head">
-                    <b>{b.label}</b>
-                    <span className={b.count > 0 ? 'bold' : 'muted'}>{b.count}</span>
-                  </div>
-                  <div className="muted" style={{ fontSize: 11 }}>{b.desc}</div>
-                  {b.stocks.slice(0, 6).map((s) => (
-                    <div className="zha-row" key={s.code}>
-                      <span className="name-link" onClick={() => onOpenStock(s.code, s.name)}>{s.name}</span>
-                      <span className="muted">{s.lianban ? `${s.lianban}板` : '首板'} · 开{s.zhaCount}次</span>
-                    </div>
-                  ))}
-                  {b.count > 6 && <div className="muted" style={{ fontSize: 11 }}>…另 {b.count - 6} 只</div>}
-                </div>
-              ))}
-            </div>
+            <table className="tbl compact">
+              <thead><tr><th>归因</th><th>只数</th><th>说明</th><th>个股</th></tr></thead>
+              <tbody>
+                {Object.entries(review.deep?.zhaAttr || {}).map(([k, b]) => (
+                  <tr key={k} className={b.count === 0 ? 'zero-row' : ''}>
+                    <td className="name">{b.label}</td>
+                    <td className={b.count > 0 ? 'warn bold' : 'muted'}>{b.count}</td>
+                    <td className="muted reasons-cell">{b.desc}</td>
+                    <td className="reasons-cell">
+                      {b.stocks.length === 0 ? <span className="muted">-</span> : b.stocks.slice(0, 6).map((s, i) => (
+                        <span key={s.code}>
+                          {i > 0 && <span className="muted"> · </span>}
+                          <span className="name-link" onClick={() => onOpenStock(s.code, s.name)}>{s.name}</span>
+                          <span className="muted">{s.lianban ? `${s.lianban}板` : '首板'}/开{s.zhaCount}次</span>
+                        </span>
+                      ))}
+                      {b.count > 6 && <span className="muted"> …另 {b.count - 6} 只</span>}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
           </div>
 
           {/* E1 深度复盘：明日主线推演 */}

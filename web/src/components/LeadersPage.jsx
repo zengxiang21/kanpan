@@ -1,45 +1,54 @@
 // 龙头分层动态池（E4）：总龙头 / 龙二 / 分支龙头 + 动态进出状态
+// 视觉沿用涨停天梯的 stock-chip + lb 徽章，保持全站一致
 import { useEffect, useState } from 'react';
 import { api, CLOUD } from '../lib/api.js';
 
+// 进出状态 → 小号彩字标签（11px，与 .tag-hot / .dir-tag 同级）
 const STATUS = {
-  new: { label: '新进', cls: 'lab-hot' },
-  up: { label: '升级', cls: 'lab-warm' },
-  hold: { label: '保持', cls: 'lab-cool' },
-  down: { label: '降位', cls: 'lab-freeze' },
-  drop: { label: '断板', cls: 'lab-freeze' },
+  new: { label: '新进', cls: 'lp-t-new' },
+  up: { label: '升级', cls: 'lp-t-up' },
+  hold: { label: '保持', cls: 'lp-t-hold' },
+  down: { label: '降位', cls: 'lp-t-down' },
 };
 
-function Tier({ title, hint, list, onOpenStock, tone }) {
+function LeaderChip({ s, onOpenStock }) {
+  const st = STATUS[s.status];
+  return (
+    <button
+      className="stock-chip lp-cell"
+      onClick={() => onOpenStock?.(s.code, s.name)}
+      title={`${s.industry || ''} · ${s.lianban} 板 · 封单 ${s.sealFund || 0} 亿${s.prevLianban ? ` · 昨 ${s.prevLianban} 板` : ''} · 点击看详情`}
+    >
+      <b>
+        {s.name}
+        <span className={`lb ${s.lianban >= 3 ? 'lb-high' : ''}`}>{s.lianban}板</span>
+      </b>
+      <small>{s.industry || '其他'}{s.sealFund > 0 ? ` · 封单 ${s.sealFund}亿` : ''}</small>
+      <small>
+        {st && <em className={`lp-tag ${st.cls}`}>{st.label}</em>}
+        <span className="muted">{s.prevLianban ? `昨${s.prevLianban}板` : '昨未板'}</span>
+      </small>
+    </button>
+  );
+}
+
+function Tier({ title, hint, list, onOpenStock, extra }) {
   return (
     <div className="panel">
-      <h3>{title}<span className="muted" style={{ fontSize: 11, fontWeight: 'normal', marginLeft: 8 }}>{hint}</span></h3>
-      {list.length === 0 && <div className="empty">暂无</div>}
-      <div className="lp-grid">
-        {list.map((s) => {
-          const st = STATUS[s.status] || null;
-          return (
-            <button className={`lp-card ${tone || ''}`} key={s.code} onClick={() => onOpenStock?.(s.code, s.name)}>
-              <div className="lp-head">
-                <b>{s.name}</b>
-                <span className="lp-lb">{s.lianban}板</span>
-              </div>
-              <div className="lp-meta">
-                <span className="muted">{s.industry}</span>
-                {s.sealFund > 0 && <span className="muted">封单 {s.sealFund}亿</span>}
-              </div>
-              <div className="lp-tags">
-                {st && <em className={`label ${st.cls}`}>{st.label}</em>}
-                {s.promoted && <em className="label lab-warm">晋级</em>}
-                {s.prevLianban ? <em className="muted">昨{s.prevLianban}板</em> : <em className="muted">昨未板</em>}
-              </div>
-            </button>
-          );
-        })}
-      </div>
+      <h3>
+        {title}
+        <span className="muted" style={{ fontSize: 11, fontWeight: 'normal', marginLeft: 8 }}>{hint}</span>
+        {extra}
+      </h3>
+      {list.length === 0 ? <div className="empty">暂无</div> : (
+        <div className="tianti-stocks">
+          {list.map((s) => <LeaderChip key={s.code} s={s} onOpenStock={onOpenStock} />)}
+        </div>
+      )}
     </div>
   );
 }
+
 
 export default function LeadersPage({ onOpenStock }) {
   const [data, setData] = useState(null);
@@ -98,31 +107,44 @@ export default function LeadersPage({ onOpenStock }) {
         </div>
       )}
 
-      <Tier title="总龙头" hint={`全场最高 ${data.globalMaxLianban} 板，情绪风向标`} list={chief} onOpenStock={onOpenStock} tone="chief" />
-      <Tier title="龙二" hint="主线题材内第二高度，总龙头断板时的接力候选" list={second} onOpenStock={onOpenStock} tone="second" />
-      <Tier title="分支龙头" hint="各题材最高板（只统计 2 板以上）" list={branches.filter((b) => b.leader).map((b) => ({ ...b.leader, industry: b.industry, isMain: b.isMain }))} onOpenStock={onOpenStock} />
+      <Tier
+        title="总龙头"
+        hint={`全场最高 ${data.globalMaxLianban} 板，情绪风向标`}
+        list={chief}
+        onOpenStock={onOpenStock}
+      />
+      <Tier
+        title="龙二"
+        hint="主线题材内第二高度，总龙头断板时的接力候选"
+        list={second}
+        onOpenStock={onOpenStock}
+      />
 
       <div className="panel">
-        <h3>分支题材全景<span className="muted" style={{ fontSize: 11, fontWeight: 'normal', marginLeft: 8 }}>按最高板高度排序，主线标 ★</span></h3>
+        <h3>
+          分支龙头
+          <span className="muted" style={{ fontSize: 11, fontWeight: 'normal', marginLeft: 8 }}>各题材最高板（只统计 2 板以上）· ★ = 主线</span>
+        </h3>
         <table className="tbl compact">
           <thead><tr><th>题材</th><th>高度</th><th>家数</th><th>分支龙头</th><th>龙二</th><th>状态</th></tr></thead>
           <tbody>
             {branches.map((b) => (
               <tr key={b.industry}>
                 <td className="name">{b.isMain ? '★ ' : ''}{b.industry}</td>
-                <td className="bold">{b.maxLianban}板</td>
+                <td><span className={`lb ${b.maxLianban >= 3 ? 'lb-high' : ''}`}>{b.maxLianban}板</span></td>
                 <td>{b.count}</td>
                 <td>
                   {b.leader && (
                     <button className="link" onClick={() => onOpenStock?.(b.leader.code, b.leader.name)}>
-                      {b.leader.name} <span className="muted">{b.leader.lianban}板</span>
+                      {b.leader.name}
                     </button>
                   )}
+                  {b.leader && b.leader.sealFund > 0 && <span className="muted"> 封单 {b.leader.sealFund}亿</span>}
                 </td>
                 <td className="muted">{b.second ? `${b.second.name} ${b.second.lianban}板` : '-'}</td>
                 <td>
                   {b.leader?.status && (
-                    <em className={`label ${(STATUS[b.leader.status] || {}).cls || 'lab-cool'}`}>
+                    <em className={`lp-tag ${(STATUS[b.leader.status] || {}).cls || 'lp-t-hold'}`}>
                       {(STATUS[b.leader.status] || {}).label || b.leader.status}
                     </em>
                   )}
@@ -136,7 +158,10 @@ export default function LeadersPage({ onOpenStock }) {
 
       {dropped.length > 0 && (
         <div className="panel">
-          <h3>昨日池内今日掉出（断板）<span className="muted" style={{ fontSize: 11, fontWeight: 'normal', marginLeft: 8 }}>龙头断板是退潮先行信号</span></h3>
+          <h3>
+            昨日池内今日掉出（断板）
+            <span className="muted" style={{ fontSize: 11, fontWeight: 'normal', marginLeft: 8 }}>龙头断板是退潮先行信号</span>
+          </h3>
           <table className="tbl compact">
             <thead><tr><th>股票</th><th>题材</th><th>昨板高</th><th>原层级</th><th>昨封单</th></tr></thead>
             <tbody>
@@ -144,16 +169,15 @@ export default function LeadersPage({ onOpenStock }) {
                 <tr key={d.code}>
                   <td className="name">{d.name}</td>
                   <td className="muted">{d.industry}</td>
-                  <td className="bold down">{d.lianban}板</td>
-                  <td><em className="label lab-freeze">{(STATUS[d.wasTier] || { label: d.wasTier }).label || d.wasTier}</em></td>
+                  <td><span className="lb lb-high">{d.lianban}板</span></td>
+                  <td className="muted">{d.wasTier ? { chief: '总龙头', second: '龙二', branch: '分支龙头' }[d.wasTier] : '-'}</td>
                   <td className="muted">{d.sealFund}亿</td>
                 </tr>
               ))}
             </tbody>
           </table>
           <div className="hint" style={{ marginTop: 8 }}>
-            掉出的票不一定是坏票：若缩量回踩未破 MA10 且题材仍有活口，是回流候选（见"龙头回流"页）；
-            若题材整体活口归零，视为该方向退潮。
+            掉出的票不一定是坏票：若缩量回踩未破 MA10 且题材仍有活口，是回流候选（见"龙头回流"页）；若题材整体活口归零，视为该方向退潮。
           </div>
         </div>
       )}
