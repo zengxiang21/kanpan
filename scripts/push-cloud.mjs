@@ -41,11 +41,12 @@ function resolveToken() {
 }
 
 async function main() {
-  const [tickPools, review, scan, auction, global, us, sentiment, sectors, news, heatmap, leaders] = await Promise.all([
+  const [tickPools, review, scan, auction, global, us, sentiment, sectors, news, heatmap, leaders, anomalyToday, anomalyDates] = await Promise.all([
     get('snapshot'), get('review'), get('scan'), get('auction'),
     get('global').catch(() => []), get('us').catch(() => []), get('sentiment').catch(() => ({ themes: [] })),
     get('sectors').catch(() => []), get('news').catch(() => []),
     get('heatmap').catch(() => ({ groups: [] })), get('leaders').catch(() => null),
+  get('anomaly/today').catch(() => ({ events: [] })), get('anomaly/dates').catch(() => []),
   ]);
 
   // 行情未就绪时不推送：不要把空快照发到 Pages（手机/演示站会全板块空白）
@@ -58,6 +59,7 @@ async function main() {
     generatedAt: Date.now(), phase: tickPools.tick?.phase, tradingDay: tickPools.tradingDay,
     snapshot: { tick: tickPools.tick, pools: tickPools.pools },
     review, scan, auction, global, us, sentiment, sectors, news, heatmap, leaders,
+  anomaly: { today: anomalyToday, dates: anomalyDates },
   };
   const outFile = path.join(ROOT, 'docs', 'cloud', 'data.json');
   fs.mkdirSync(path.dirname(outFile), { recursive: true });

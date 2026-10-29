@@ -9,11 +9,12 @@ const ROOT = path.join(__dirname, '..');
 
 const get = async (p) => (await fetch('http://127.0.0.1:8000/api/' + p)).json();
 
-const [tickPools, review, scan, auction, global, us, sentiment, sectors, news, heatmap, leaders] = await Promise.all([
+const [tickPools, review, scan, auction, global, us, sentiment, sectors, news, heatmap, leaders, anomalyToday, anomalyDates] = await Promise.all([
   get('snapshot'), get('review'), get('scan'), get('auction'),
   get('global').catch(() => []), get('us').catch(() => []), get('sentiment').catch(() => ({ themes: [] })),
   get('sectors').catch(() => []), get('news').catch(() => []),
   get('heatmap').catch(() => ({ groups: [] })), get('leaders').catch(() => null),
+  get('anomaly/today').catch(() => ({ events: [] })), get('anomaly/dates').catch(() => []),
 ]);
 
 if (!tickPools.tick) {
@@ -27,6 +28,7 @@ const data = {
   tradingDay: tickPools.tradingDay,
   snapshot: { tick: tickPools.tick, pools: tickPools.pools },
   review, scan, auction, global, us, sentiment, sectors, news, heatmap, leaders,
+  anomaly: { today: anomalyToday, dates: anomalyDates },
 };
 
 const outFile = path.join(ROOT, 'docs', 'cloud', 'data.json');
@@ -36,4 +38,5 @@ console.log('[snapshot-cloud] 已写入', outFile);
 console.log('  tradingDay =', data.tradingDay, '| phase =', data.phase);
 console.log('  tick.cycleStage =', data.snapshot.tick.cycleStage, '| zt =', data.snapshot.tick.ztCount);
 console.log('  review.emotion.cycleStage =', data.review?.emotion?.cycleStage);
+  console.log('  anomaly events =', data.anomaly?.today?.count ?? 0, '| dates =', (data.anomaly?.dates || []).length);
 process.exit(0);

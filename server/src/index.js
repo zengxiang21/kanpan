@@ -15,6 +15,7 @@ import { industryOf } from './industries.js';
 import { buildHeatmap } from './heatmap.js';
 import { buildLeaderPool } from './leaderpool.js';
 import { buildMacroCalendar } from './macro.js';
+import { todayEvents, anomalyDates, buildAnomalyReview, dayOf } from './anomaly.js';
 import { getUser, saveUser } from './userstore.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -120,6 +121,24 @@ app.get('/api/heatmap', (req, res) => {
 app.get('/api/macro', (req, res) => {
   const days = Math.min(90, Math.max(1, Number(req.query.days) || 30));
   res.json(buildMacroCalendar(days));
+});
+
+// 异动监控：当日实时事件（服务端全市场帧对比，持久化）
+app.get('/api/anomaly/today', (req, res) => {
+  const events = todayEvents();
+  // 用服务端 dayOf 口径推日期，避免 UTC toISOString 在凌晨算出前一天
+  const day = events.length ? dayOf(events[events.length - 1].t) : dayOf();
+  res.json({ date: day, count: events.length, events: events.slice(-300).reverse() });
+});
+
+// 异动记录日期列表（倒序，供复盘选择）
+app.get('/api/anomaly/dates', (req, res) => res.json(anomalyDates()));
+
+// 某日异动复盘（聚合统计 + 次日参考）
+app.get('/api/anomaly/review', (req, res) => {
+  const date = String(req.query.date || '');
+  if (!/^\d{8}$/.test(date)) return res.status(400).json({ error: 'bad date, want yyyyMMdd' });
+  res.json(buildAnomalyReview(date));
 });
 
 // 龙头分层动态池（总龙头/龙二/分支龙头 + 进出状态）

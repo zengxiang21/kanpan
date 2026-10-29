@@ -8,6 +8,7 @@ import { loadIndustryMap, ensureIndustryMapStarted, industryState } from './indu
 import { updateAuctionCloses, saveAuctionSnapshot, getAuctionByDate } from './auctionstore.js';
 import { auctionScan } from './scan.js';
 import { cycleStage } from './emotion.js';
+import { detectAnomaly } from './anomaly.js';
 
 function auctionSavedToday(day) {
   return !!getAuctionByDate(day);
@@ -338,6 +339,10 @@ export async function runSweep() {
     const prevCount = state.marketSweep?.rows?.length || 0;
     state.marketSweep = await sinaFullSweep();
     if (prevCount === 0) console.log('[sweep] 首次全市场快照：', state.marketSweep.total, '只');
+    // 异动检测：每轮全市场快照与上一轮对比，覆盖全部 5000+ 只并落盘供复盘
+    // 注意 sweep 间隔约 15~20 秒（交易时段 5 分钟一轮），所以 event.intervalMs 是真实间隔，
+    // 前端不要写成"3 秒急拉"这种不准确描述
+    detectAnomaly(state.marketSweep?.rows, state.pools);
   } catch (e) {
     console.error('[sweep]', e.message);
   } finally {
