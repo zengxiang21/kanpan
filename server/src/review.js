@@ -160,11 +160,183 @@ import { historyState } from './history.js';
 import { getQuotes } from './em.js';
 import { marketPhase } from './state.js';
 import { cycleStage } from './emotion.js';
+import { buildLeaderPool } from './leaderpool.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const DIR = path.join(__dirname, '..', 'data', 'review');
 
 // 复盘报告（盘中/收盘都可用，收盘后即为当日复盘）
+// ---------- 明日应对方案（综合 情绪周期 + 龙头分层 + 题材生命周期 + 炸板归因 + 主线推演）----------
+// 原实现是一维文字列表，各模块各说一句，没综合判断，也没有失败预案。
+// 现在输出结构化方案：环境定性 → 方向 → 标的 → 失败预案 → 风控红线。
+function buildTomorrowPlan({ t, stage, stageDesc, lifecycle, zhaAttr, forecast, leaders, themes }) {
+  const env = t.env;
+  const st = leaders?.stats || {};
+  const chiefBroken = !!st.chiefBroken;
+  const heightChange = st.heightChange ?? 0;
+  const gapThemes = st.gapThemes || [];
+
+  // ========== 一、环境定性：今天到底能不能出手 ==========
+  const reasons = [];
+  if (env) reasons.push(`开仓评分 ${env.total}（${env.label}）`);
+  reasons.push(`情绪周期【${stage}】：${stageDesc}`);
+  if (heightChange !== 0) {
+    reasons.push(heightChange < 0
+      ? `空间高度下降 ${Math.abs(heightChange)} 板（${leaders.prevMaxLianban}板 → ${leaders.globalMaxLianban}板）`
+      : `空间高度扩张 ${heightChange} 板（→ ${leaders.globalMaxLianban}板）`);
+  }
+  if (chiefBroken) reasons.push(`总龙头断板（原 ${leaders.prevMaxLianban} 板）`);
+  if (t.premium) reasons.push(`昨日涨停溢价 ${t.premium.avg > 0 ? '+' : ''}${t.premium.avg}%（翻红率 ${t.premium.redRate}%）`);
+
+  let level, action;
+  if (chiefBroken || stage === '退潮' || stage === '冰点' || (env && env.total < 30)) {
+    level = 'freeze'; action = '空仓观望';
+    if (chiefBroken) reasons.push('高度真空 + 龙头断板 = 退潮确认，等新周期启动信号');
+  } else if (env && env.total >= 75 && (stage === '发酵' || stage === '高潮')) {
+    level = 'hot'; action = '重仓出击';
+  } else if (env && env.total >= 50) {
+    level = 'warm'; action = '轻仓试错';
+  } else {
+    level = 'cool'; action = '只看低吸';
+  }
+
+  // ========== 二、方向：做哪个题材、回避哪个 ==========
+  const go = forecast.mainlines.slice(0, 3).map((m) => ({
+    direction: m.direction, score: m.score, reasons: m.reasons,
+  }));
+  const avoidMap = new Map();
+  for (const lc of lifecycle) {
+    if (lc.phase === '退潮') avoidMap.set(lc.industry, { industry: lc.industry, why: `题材退潮（${lc.note}）` });
+    else if (lc.phase === '分歧' && lc.zhaCount >= 2) avoidMap.set(lc.industry, { industry: lc.industry, why: `高位分歧（${lc.zhaCount} 只炸板）` });
+  }
+  for (const s of zhaAttr.sectorFade.stocks) {
+    if (!avoidMap.has(s.industry)) avoidMap.set(s.industry, { industry: s.industry, why: '板块性炸板退潮' });
+  }
+  const avoid = [...avoidMap.values()].slice(0, 5);
+  const watch = forecast.watchOnly.slice(0, 5).map((m) => ({ direction: m.direction, score: m.score }));
+
+  // ========== 三、标的：具体做哪几只票（来自龙头分层）==========
+  const targets = [];
+  const kawci = leaders?.chief?.find((c) => c.isKawci);
+  if (kawci) {
+    targets.push({
+      code: kawci.code, name: kawci.name, role: '卡位龙',
+      lianban: kawci.lianban, quality: kawci.quality, industry: kawci.industry,
+      sealRatio: kawci.sealRatio, nextDay: kawci.nextDay,
+      why: `全场最高 ${kawci.lianban} 板中质量分最高（${kawci.quality}），同高度竞争胜出者`,
+    });
+  }
+  for (const c of leaders?.chief || []) {
+    if (c.isKawci) continue;
+    targets.push({
+      code: c.code, name: c.name, role: '总龙头（并列）',
+      lianban: c.lianban, quality: c.quality, industry: c.industry,
+      sealRatio: c.sealRatio, nextDay: c.nextDay,
+      why: `${c.lianban} 板但质量分 ${c.quality}${c.sealRatio != null ? `（封流比 ${c.sealRatio}%）` : ''}，弱于卡位龙，只作备选`,
+    });
+  }
+  for (const s of leaders?.second || []) {
+    targets.push({
+      code: s.code, name: s.name, role: '龙二（接力候选）',
+      lianban: s.lianban, quality: s.quality, industry: s.industry,
+      sealRatio: s.sealRatio, nextDay: s.nextDay,
+      why: '主线内第二高度，总龙头断板时的接力候选',
+    });
+  }
+  // 主线低位首板套利：发酵/高潮期确定性较高的套利板
+  const mainSet = new Set(go.map((g) => g.direction));
+  for (const lc of lifecycle) {
+    if (!mainSet.has(lc.industry)) continue;
+    if (lc.phase !== '发酵' && lc.phase !== '高潮') continue;
+    const pool = (themes.find((th) => th.industry === lc.industry)?.stocks || [])
+      .filter((s) => (s.lianban || 1) === 1)
+      .sort((a, b) => (b.sealFund || 0) - (a.sealFund || 0));
+    if (pool[0]) {
+      targets.push({
+        code: pool[0].code, name: pool[0].name, role: '主线低位首板（套利）',
+        lianban: 1, quality: null, industry: lc.industry,
+        sealRatio: null,
+        nextDay: { level: 'chase', text: '低位首板套利：竞价高开带量可上，冲高不封兑现一半' },
+        why: `${lc.industry} 处于${lc.phase}，低位首板吃板块溢价，确定性较高的套利板`,
+      });
+    }
+  }
+
+  // ========== 四、失败预案（关键：想好做错了怎么办）==========
+  const contingency = [
+    {
+      trigger: '竞价高开但量比 < 3',
+      action: '不参与，观察至 9:40',
+      detail: '高开无量 = 虚假强势。等 9:40 看能否站上分时均价线，站不上不动手。',
+    },
+  ];
+  if (chiefBroken) {
+    contingency.push({
+      trigger: `总龙头（原 ${leaders.prevMaxLianban} 板）已断板`,
+      action: '不接力，等新周期',
+      detail: '高度真空期不参与高位板。等首板数量回升 + 新题材出现再出手。',
+    });
+  }
+  if (go.length) {
+    contingency.push({
+      trigger: `主线（${go.map((g) => g.direction).slice(0, 2).join('/')}）集体低开 >2%`,
+      action: '放弃该方向，不抄底',
+      detail: '主线低开说明资金撤离，低吸容易接飞刀。转向未启动的首板方向或空仓。',
+    });
+  }
+  contingency.push({
+    trigger: '打板后当日炸板',
+    action: '无条件走，不留过夜',
+    detail: '炸板说明封单被砸穿，当日必须出。弱势票过夜是超短大忌。',
+  });
+  contingency.push({
+    trigger: '低吸后跌破入场价 -3% 或跌破 MA5',
+    action: '硬止损，不摊平',
+    detail: '低吸做错要认。跌破止损线立即走，不等反弹。',
+  });
+  if (gapThemes.length) {
+    contingency.push({
+      trigger: `参与题材出现断层（${gapThemes.slice(0, 2).join('/')} 缺中间板）`,
+      action: '降级为观察，不加仓',
+      detail: '断层说明梯队不完整，持续性差。只持有不加仓，破位即走。',
+    });
+  }
+  contingency.push({
+    trigger: '连亏 2 笔',
+    action: '当日停手',
+    detail: '连亏说明判断失灵或环境变化，当日不再开新仓。复盘后再战。',
+  });
+  contingency.push({
+    trigger: '盘中炸板率快速升破 35% 或跌停家数反超涨停',
+    action: '全面降仓，只卖不买',
+    detail: '这是退潮的盘中实时信号，出现即减仓，不等收盘确认。',
+  });
+
+  // ========== 五、风控红线 ==========
+  const risk = [
+    '单票仓位不超 3 成；主线龙头可到 5 成，但必须日内有兑现点',
+    `今日环境【${action}】：${level === 'freeze' ? '不出手，看盘学习即可' : level === 'hot' ? '可上主线龙头，注意分歧日兑现' : level === 'warm' ? '控制仓位打首板或低吸，不追高位板' : '仅做强势股缩量回踩低吸，不打板'}`,
+    '打板票炸板无条件走；连亏 2 笔当日停手',
+    '不参与一字板（买不进）与 ST；不做北交所',
+  ];
+
+  return {
+    verdict: { level, action, reasons },
+    directions: { go, avoid, watch },
+    targets: targets.slice(0, 6),
+    contingency,
+    risk,
+    // 保留旧版文字列表，兼容老前端
+    text: [
+      ...reasons.map((r) => `· ${r}`),
+      `→ 明日定性：${action}`,
+      ...(go.length ? [`· 主线方向：${go.map((g) => g.direction).join('、')}`] : []),
+      ...(avoid.length ? [`· 回避方向：${avoid.map((a) => a.industry).join('、')}`] : []),
+      ...risk,
+    ],
+  };
+}
+
 export function buildReview(state, phase) {
   const t = state.tick || {};
   const pools = state.pools;
@@ -226,27 +398,13 @@ export function buildReview(state, phase) {
     t,
   );
 
-  // 应对策略（模板化，结合评分与周期）
-  const strategy = [];
-  const env = t.env;
-  if (env) {
-    strategy.push(`开仓评分 ${env.total}（${env.label}）→ ${env.advice}`);
-  }
-  strategy.push(`情绪周期处于【${stage}】：${stageDesc}`);
-  if (t.maxLianban >= 4) strategy.push(`空间板 ${t.maxLianban} 板是明日情绪风向标：它若继续晋级可参与补涨，若断板则警惕退潮`);
-  if (t.premium) strategy.push(`昨日涨停平均溢价 ${t.premium.avg}%（翻红率 ${t.premium.redRate}%），溢价转负当日不接力`);
-  const hot = themes[0];
-  if (hot) strategy.push(`今日最热方向【${hot.industry}】${hot.count} 家涨停（龙头 ${hot.top}），明日优先在主流方向内选股`);
-  // E1：主线推演 + 炸板归因写进文字策略
-  if (forecast.mainlines.length) {
-    const m = forecast.mainlines[0];
-    strategy.push(`明日主线首推【${m.direction}】（评分 ${m.score}：${m.reasons.slice(0, 3).join('、')}）`);
-  }
-  const fade = zhaAttr.sectorFade;
-  if (fade.count > 0) strategy.push(`炸板归因：${fade.count} 只属板块性退潮（${fade.stocks.map((s) => s.industry).filter((v, i, a) => a.indexOf(v) === i).slice(0, 3).join('/')}），明日回避这些方向`);
-  const trial = zhaAttr.trialPan;
-  if (trial.count > 0) strategy.push(`${trial.count} 只试盘型炸板（早盘一封即开），次日若高开可看回封`);
-  strategy.push('风控：单票仓位不超 3 成；打板票炸板无条件走；连亏 2 笔当日停手');
+  // ---------- 明日应对方案：综合龙头分层 + 题材生命周期 + 炸板归因 + 主线推演 ----------
+  // persist=false：只读快照，不覆盖龙头分层自己的快照文件
+  const leaders = buildLeaderPool(pools, state.tradingDay, false);
+  const tomorrowPlan = buildTomorrowPlan({
+    t, stage, stageDesc, lifecycle, zhaAttr, forecast, leaders, themes,
+  });
+  const strategy = tomorrowPlan.text;
 
   return {
     date: state.tradingDay,
@@ -265,6 +423,7 @@ export function buildReview(state, phase) {
       cycleStage: stage, cycleDesc: stageDesc,
     },
     themes, ladder, watchTomorrow, strategy,
+    tomorrowPlan,
     deep: { lifecycle, zhaAttr, forecast },
   };
 }

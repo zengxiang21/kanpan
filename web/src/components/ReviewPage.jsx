@@ -4,6 +4,129 @@ import { fmtPrice, fmtPct, pctCls, fmtAmount } from '../lib/format.js';
 import { api, CLOUD } from '../lib/api.js';
 import { useFlash } from '../lib/useFlash.js';
 
+
+const LEVEL_META = {
+  hot: { label: '重仓出击', cls: 'lab-hot', border: 'var(--up)' },
+  warm: { label: '轻仓试错', cls: 'lab-warm', border: 'var(--warn)' },
+  cool: { label: '只看低吸', cls: 'lab-cool', border: '#58a6ff' },
+  freeze: { label: '空仓观望', cls: 'lab-freeze', border: 'var(--down)' },
+};
+
+// 明日应对方案：环境定性 → 方向 → 标的 → 失败预案 → 风控红线
+function TomorrowPlan({ plan, onOpenStock }) {
+  if (!plan?.verdict) return null;
+  const v = plan.verdict;
+  const meta = LEVEL_META[v.level] || LEVEL_META.cool;
+  const d = plan.directions || {};
+  const targets = plan.targets || [];
+  const contingency = plan.contingency || [];
+  const risk = plan.risk || [];
+
+  return (
+    <div className="panel tp-panel" style={{ borderColor: meta.border }}>
+      <h3>明日应对方案（综合 情绪周期 + 龙头分层 + 题材生命周期 + 炸板归因）</h3>
+
+      {/* 一、环境定性 */}
+      <div className="tp-verdict">
+        <span className={`v label ${meta.cls}`} style={{ fontSize: 22 }}>{v.action}</span>
+        <ul className="tp-reasons">
+          {(v.reasons || []).map((r, i) => <li key={i}>{r}</li>)}
+        </ul>
+      </div>
+
+      <div className="row2">
+        {/* 二、方向 */}
+        <div>
+          <div className="k" style={{ fontSize: 12, marginBottom: 6 }}>方向</div>
+          {(d.go || []).length > 0 && (
+            <div className="tp-dir">
+              <em className="lb lb-green">做多</em>
+              {(d.go || []).map((g) => (
+                <span className="tp-dir-item" key={g.direction} title={(g.reasons || []).join(' · ')}>
+                  {g.direction}<b>{g.score}</b>
+                </span>
+              ))}
+            </div>
+          )}
+          {(d.avoid || []).length > 0 && (
+            <div className="tp-dir">
+              <em className="lb lb-high">回避</em>
+              {(d.avoid || []).map((a) => (
+                <span className="tp-dir-item tp-avoid" key={a.industry} title={a.why}>{a.industry}</span>
+              ))}
+            </div>
+          )}
+          {(d.watch || []).length > 0 && (
+            <div className="tp-dir">
+              <em className="lb">观察</em>
+              {(d.watch || []).map((w) => (
+                <span className="tp-dir-item tp-watch" key={w.direction}>{w.direction}<b>{w.score}</b></span>
+              ))}
+            </div>
+          )}
+          {(!d.go || !d.go.length) && (!d.avoid || !d.avoid.length) && <div className="hint">方向信号不足，以观察为主</div>}
+        </div>
+
+        {/* 五、风控红线 */}
+        <div>
+          <div className="k" style={{ fontSize: 12, marginBottom: 6 }}>风控红线</div>
+          <ul className="tp-risk">
+            {risk.map((r, i) => <li key={i}>{r}</li>)}
+          </ul>
+        </div>
+      </div>
+
+      {/* 三、标的 */}
+      {targets.length > 0 && (
+        <div style={{ marginTop: 12 }}>
+          <div className="k" style={{ fontSize: 12, marginBottom: 6 }}>
+            标的（来自龙头分层 · 按角色与质量分排序）
+            <span className="muted" style={{ fontWeight: 'normal', marginLeft: 6 }}>点击看详情</span>
+          </div>
+          <table className="tbl compact">
+            <thead><tr><th>角色</th><th>名称</th><th>板数</th><th>质量分</th><th>封流比</th><th>次日预期</th><th>理由</th></tr></thead>
+            <tbody>
+              {targets.map((t) => (
+                <tr key={t.code}>
+                  <td><span className={`lb ${t.role.includes('卡位') ? 'lb-high' : ''}`}>{t.role}</span></td>
+                  <td className="name"><span className="name-link" onClick={() => onOpenStock(t.code, t.name)}>{t.name}<small>{t.code}</small></span></td>
+                  <td className="bold">{t.lianban}板</td>
+                  <td className={t.quality != null ? (t.quality >= 75 ? 'up bold' : t.quality >= 60 ? 'warn' : 'muted') : 'muted'}>{t.quality != null ? t.quality : '-'}</td>
+                  <td className="muted">{t.sealRatio != null ? `${t.sealRatio}%` : '-'}</td>
+                  <td className="reasons-cell">{t.nextDay ? t.nextDay.text : '低位首板套利，看竞价承接'}</td>
+                  <td className="muted reasons-cell">{t.why}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+
+      {/* 四、失败预案 */}
+      {contingency.length > 0 && (
+        <div style={{ marginTop: 12 }}>
+          <div className="k" style={{ fontSize: 12, marginBottom: 6 }}>
+            失败预案（做错了怎么办 · 盘前想好，盘中不慌）
+          </div>
+          <table className="tbl compact">
+            <thead><tr><th>触发条件</th><th>动作</th><th>说明</th></tr></thead>
+            <tbody>
+              {contingency.map((c, i) => (
+                <tr key={i}>
+                  <td className="name tp-trigger">{c.trigger}</td>
+                  <td><span className="lb lb-warn">{c.action}</span></td>
+                  <td className="muted reasons-cell">{c.detail}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+    </div>
+  );
+}
+
+
 // 题材生命周期阶段 → 徽章配色（复用 .lb / .lb-high 系，保持全站一致）
 const PHASE_LB = {
   高潮: 'lb-high',   // 红（最热）
@@ -145,6 +268,8 @@ export default function ReviewPage({ tick, watch, onOpenStock }) {
 
           <div className="panel">
             <h3>明日应对策略（自动生成）</h3>
+          <TomorrowPlan plan={review.tomorrowPlan} onOpenStock={onOpenStock} />
+
             <ol className="strategy-list">
               {(review.strategy || []).map((s, i) => <li key={i}>{s}</li>)}
             </ol>

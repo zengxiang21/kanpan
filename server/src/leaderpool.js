@@ -202,8 +202,10 @@ export function buildLeaderPool(pools, day, persist = true) {
         : null,
     });
     // 主线内第二高度 → 龙二（必须是"次高"：与龙头同高度的并列龙头不算龙二）
-    if (ctx.isMain && t.stocks[1] && (t.stocks[1].lianban || 1) < t.maxLianban) {
-      second.push(t.stocks[1]);
+    // 注意不能直接取 stocks[1]——并列龙头时 stocks[1] 也是最高板，会把龙二挤掉
+    if (ctx.isMain) {
+      const secondStock = t.stocks.find((x) => (x.lianban || 1) < t.maxLianban);
+      if (secondStock) second.push(secondStock);
     }
   }
 

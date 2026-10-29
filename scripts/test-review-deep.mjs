@@ -142,5 +142,96 @@ console.log('\n[7] 空池边界');
   eq(r.strategy.length > 0, true, 'strategy 仍有风控等基础条目');
 }
 
+const truthy = (c, label) => { if (c) { pass++; console.log(`  ok   ${label}`); } else { fail++; console.log(`  FAIL ${label}`); } };
+
+// ================= 明日应对方案（综合 + 失败预案）=================
+console.log('\n[16] tomorrowPlan 结构与字段完整性');
+{
+  const r = buildReview(mkState({
+    zt: [zt('001', 'KA', 4, 'X', 3e8, 1e10, '09:31:00'), zt('002', 'SEC', 2, 'X', 1e8, 1e10, '09:31:00'), zt('003', 'FIRST', 1, 'X', 5e7, 1e9, '10:00:00')],
+    zb: [], prevZt: [],
+  }), 'closed');
+  const p = r.tomorrowPlan;
+  truthy(!!p, 'tomorrowPlan 存在');
+  if (p) {
+  for (const k of ['verdict', 'directions', 'targets', 'contingency', 'risk', 'text']) {
+    truthy(k in p, `tomorrowPlan.${k} 存在`);
+  }
+  truthy(['freeze', 'hot', 'warm', 'cool'].includes(p.verdict.level), 'verdict.level 四档之一');
+  truthy(typeof p.verdict.action === 'string' && p.verdict.action.length > 0, 'verdict.action 非空');
+  truthy(Array.isArray(p.verdict.reasons) && p.verdict.reasons.length >= 2, 'verdict.reasons 有多条依据');
+  }
+  truthy(Array.isArray(p.directions.go), 'directions.go 是数组');
+  truthy(Array.isArray(p.directions.avoid), 'directions.avoid 是数组');
+  truthy(Array.isArray(p.targets), 'targets 是数组');
+  truthy(Array.isArray(p.contingency), 'contingency 是数组');
+  truthy(Array.isArray(p.risk) && p.risk.length >= 3, 'risk 至少 3 条');
+}
+
+console.log('\n[17] targets 带龙头分层角色与质量分');
+{
+  const r = buildReview(mkState({
+    zt: [zt('001', 'KA', 4, 'X', 3e8, 1e10, '09:31:00'), zt('001B', 'KB', 4, 'X', 1e8, 1e10, '09:31:00'), zt('002', 'SEC', 2, 'X', 1e8, 1e10, '09:31:00')],
+    zb: [], prevZt: [],
+  }), 'closed');
+  const ts = r.tomorrowPlan.targets;
+  truthy(ts.some((x) => x.role === '卡位龙'), '含卡位龙');
+  truthy(ts.some((x) => x.role === '龙二（接力候选）'), '含龙二');
+  const kawci = ts.find((x) => x.role === '卡位龙');
+  truthy(kawci && kawci.quality > 0, '卡位龙带质量分');
+  truthy(kawci && !!kawci.nextDay, '卡位龙带次日预期');
+  truthy(ts.every((x) => x.why && x.why.length > 0), '每个标的都有理由');
+}
+
+console.log('\n[18] 失败预案：基础项必在，条件项按信号出现');
+{
+  const r = buildReview(mkState({
+    zt: [zt('001', 'KA', 3, 'X', 1e8, 1e10, '09:31:00')],
+    zb: [], prevZt: [],
+  }), 'closed');
+  const c = r.tomorrowPlan.contingency;
+  const triggers = c.map((x) => x.trigger);
+  truthy(triggers.some((t2) => t2.includes('量比')), '含竞价量比预案');
+  truthy(triggers.some((t2) => t2.includes('炸板')), '含打板炸板预案');
+  truthy(triggers.some((t2) => t2.includes('跌破')), '含低吸止损预案');
+  truthy(triggers.some((t2) => t2.includes('连亏')), '含连亏熔断预案');
+  truthy(c.every((x) => x.action && x.detail), '每条预案都有 action + detail');
+}
+
+console.log('\n[19] 龙头断板 → 环境定性 freeze + 专属预案');
+{
+  const r = buildReview(mkState({
+    zt: [zt('001', 'LOW', 3, 'X', 1e8, 1e10, '09:31:00')],
+    zb: [], prevZt: [zt('009', 'TOP', 5, 'X', 1e8, 1e10, '09:31:00')],
+  }), 'closed');
+  const p = r.tomorrowPlan;
+  eq(p.verdict.level, 'freeze', '高度真空 → freeze');
+  eq(p.verdict.action, '空仓观望', '定性空仓观望');
+  truthy(p.contingency.some((x) => x.trigger.includes('总龙头')), '含总龙头断板预案');
+  truthy(p.verdict.reasons.some((x) => x.includes('高度下降')), 'reasons 提及高度下降');
+}
+
+console.log('\n[20] 强环境 + 发酵期 → 重仓出击');
+{
+  const r = buildReview(mkState({
+    zt: [zt('001', 'A', 4, 'X', 3e8, 1e10, '09:31:00'), zt('002', 'B', 3, 'X', 2e8, 1e10, '09:31:00'), zt('003', 'C', 2, 'X', 1e8, 1e10, '09:31:00'), zt('004', 'D', 1, 'X', 5e7, 1e9, '10:00:00')],
+    zb: [], prevZt: [zt('001', 'A', 3, 'X', 1e8, 1e10, '09:31:00')],
+    tickExtra: { env: { total: 80, label: '重仓出击', advice: 'x', parts: [] } },
+  }), 'closed');
+  const p = r.tomorrowPlan;
+  truthy(p.verdict.level === 'hot' || p.verdict.level === 'warm', `环境好 → hot/warm（实际 ${p.verdict.level}）`);
+  truthy(p.directions.go.length > 0, '有主线方向');
+}
+
+console.log('\n[21] 空池不抛错');
+{
+  const r = buildReview(mkState({ zt: [], zb: [], prevZt: [] }), 'closed');
+  const p = r.tomorrowPlan;
+  truthy(!!p, '空池也有 tomorrowPlan');
+  truthy(Array.isArray(p.contingency) && p.contingency.length > 0, '空池仍有基础预案');
+  truthy(Array.isArray(p.text) && p.text.length > 0, 'text 兼容字段非空');
+}
+
+
 console.log(`\n===== ${pass} passed, ${fail} failed =====`);
 process.exit(fail ? 1 : 0);
