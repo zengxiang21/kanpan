@@ -171,5 +171,25 @@ console.log('[10] 状态灯样式（此前 .dot/.ts/.phase/.day/.fallback-badge 
 }
 
 console.log('');
+console.log('[11] 宽表横滚提示（用户反馈龙头分层「下面的没法滑动，有遮挡」）');
+{
+  // .panel 有 overflow-x:auto，但视觉上看不出能左右拖，右侧内容像被屏幕裁掉
+  // 用 :has() 只给含表格的面板加提示，不动任何 JSX
+  ok(/\.panel:has\(>?\s*\.tbl\)::?after\s*\{/.test(mobileBlock), "有 :has() 选中含表格的面板");
+  ok(/content:\s*'[^']*滑动[^']*'/.test(mobileBlock), '提示文案含「滑动」');
+  ok(/\.panel:has\(>?\s*\.tbl\)::?after\s*\{[^}]*display:\s*block/.test(mobileBlock), "提示是 block（位于表格下方一行，不参与横滚）");
+  ok(/\.panel:has\(>?\s*\.tbl\)::?after\s*\{[^}]*text-align:\s*center/.test(mobileBlock), "提示居中");
+  ok(/\.panel:has\(>?\s*\.tbl\)::?after\s*\{[^}]*color:\s*var\(--muted\)/.test(mobileBlock), "提示用弱化色，不抢视觉");
+}
+
+console.log('[12] 横滚能力本身必须保留（提示只是辅助，不能替代能滚）');
+{
+  ok(/\.panel\s*\{\s*overflow-x:\s*auto/.test(mobileBlock), ".panel 仍可横向滚动");
+  ok(/-webkit-overflow-scrolling:\s*touch/.test(mobileBlock), "iOS 惯性滚动仍在");
+  ok(/\.tbl\s*\{\s*min-width:\s*max-content/.test(mobileBlock), "表格按内容展开（否则没有可滚的溢出量）");
+  ok(/\.tbl td,\s*\.tbl th\s*\{[^}]*white-space:\s*nowrap/.test(mobileBlock), "单元格 nowrap（列宽不被压缩）");
+}
+
+console.log('');
 console.log(`===== ${pass} passed, ${fail} failed =====`);
 process.exit(fail ? 1 : 0);

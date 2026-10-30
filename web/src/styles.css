@@ -375,7 +375,10 @@ tr.clickable { cursor: pointer; }
   .tbl { font-size: 12px; }
   .tbl td, .tbl th { padding: 5px 6px !important; }
   /* 表头吸顶要避开顶部菜单栏，否则表格表头会被 tab 压住看不见。
-     用 --bar-h 与栏高同源，不写死 px——写死就会在字体行高变化时压住或留缝。 */
+     用 --bar-h 与栏高同源，不写死 px——写死就会在字体行高变化时压住或留缝。
+     注意：手机上 .panel 是横滚容器（overflow-x:auto 会把 overflow-y 也变成 auto），
+     sticky 的包含块因此是 .panel 而非窗口，吸顶本来就不生效；保留规则是为桌面端，
+     手机端若发现表头表现异常（浮在内容上/遮挡），见下方 .tbl-scroll-hint 方案。 */
   .tbl th { top: var(--bar-h) !important; }
   /* 手机端表格：横向滚动，而不是把内容逐字断行。
      曾经这里写成 white-space:normal + overflow-wrap:anywhere + word-break:break-word，
@@ -388,6 +391,18 @@ tr.clickable { cursor: pointer; }
   .tbl td, .tbl th { white-space: nowrap; }
   /* 长文案列仍然要换行（这些列本身有专门 class，且内容确实长） */
   .reasons-cell, .plan-action, .case-plain { white-space: normal !important; }
+
+  /* 宽表横滚提示：.panel 有 overflow-x:auto，但用户看不出这里能左右拖，
+     右侧内容像被屏幕裁掉（用户反馈龙头分层「下面的没法滑动，有遮挡」的直观感受）。
+     用 :has() 只给含表格的面板加一行提示，不动任何 JSX。
+     ::after 是 block，位于表格下方一行，不参与横滚内容。 */
+  .panel:has(> .tbl)::after {
+    content: '← 左右滑动查看全部列';
+    display: block; text-align: center;
+    font-size: 11px; color: var(--muted);
+    padding: 7px 0 1px; margin-top: 7px;
+    border-top: 1px dashed var(--border);
+  }
   /* 股票 chip 要保证票名（最多 4 汉字 @13px ≈ 52px + padding 18px）能单行显示。
      曾经把 min-width 归零，chip 被压到极窄，票名同样逐字竖排。 */
   .stock-chip { min-width: 86px; }
