@@ -347,36 +347,76 @@ async function tencentGlobal() {
   return out;
 }
 
+// 外盘期货（hf_ 前缀）：A50、纳指、标普、道指期货，字段格式相同
+//   f[0]=现价 f[2]/f[3]=买卖价 f[4]=最高 f[5]=最低 f[6]=行情时间
+//   f[7]=昨收（涨跌幅基准） f[8]=昨结 f[12]=日期 f[13]=中文名称
+// 纳指/标普/道指期货近乎 23.5 小时连续交易，A股开盘时它已综合了隔夜美股
+// 与亚盘情绪，是比美股现货收盘价更实用的盘前风向标。
+const FUTURES = [
+  ['hf_NQ', 'nq', '纳斯达克期货'],
+  ['hf_ES', 'es', '标普500期货'],
+  ['hf_YM', 'ym', '道琼斯期货'],
+  ['hf_CHA50CFD', 'a50', '富时A50期货'],
+];
+
+function parseFuture(code, key, fallbackName, f) {
+  if (f.length < 9) return null;
+  const price = parseFloat(f[0]);
+  const prev = parseFloat(f[7]);
+  if (!price) return null;
+  return {
+    key,
+    name: f[13] || fallbackName,
+    price,
+    change: +(price - prev).toFixed(2),
+    pct: prev ? +(((price - prev) / prev) * 100).toFixed(2) : 0,
+    time: f[6] || null,
+    date: f[12] || null,
+  };
+}
+
 async function sinaGlobal() {
-  const txt = await fetchGBK(`https://hq.sinajs.cn/list=int_hangseng,int_nikkei,hf_CHA50CFD`, HEADERS_SINA);
+  const txt = await fetchGBK(
+    `https://hq.sinajs.cn/list=int_hangseng,int_nikkei,${FUTURES.map(([c]) => c).join(',')}`,
+    HEADERS_SINA,
+  );
   const out = [];
   for (const m of txt.matchAll(/hq_str_(\w+)="([^"]*)"/g)) {
     const f = m[2].split(',');
     if (m[1].startsWith('int_')) {
       if (f.length < 4) continue;
       out.push({ key: m[1], name: f[0], price: parseFloat(f[1]), change: parseFloat(f[2]), pct: parseFloat(f[3]) });
-    } else if (m[1] === 'hf_CHA50CFD') {
-      if (f.length < 9) continue;
-      const price = parseFloat(f[0]);
-      const prev = parseFloat(f[7]);
-      out.push({
-        key: 'a50', name: '富时A50期货', price,
-        change: +(price - prev).toFixed(1),
-        pct: prev ? +(((price - prev) / prev) * 100).toFixed(2) : 0,
-      });
+      continue;
     }
+    const spec = FUTURES.find(([c]) => c === m[1]);
+    if (!spec) continue;
+    const row = parseFuture(m[1], spec[1], spec[2], f);
+    if (row) out.push(row);
   }
   return out;
 }
 
-const GLOBAL_ORDER = { nasdaq: 0, dji: 1, sp500: 2, a50: 3, int_hangseng: 4, int_nikkei: 5 };
+// 期货排在最前：对 A 股开盘的指导价值高于已收盘的美股现货。
+// 注意 key 必须用真实值——tencentGlobal 的 key 是 m[1].toLowerCase()，
+// 即 ixic/dji/inx，不是 nasdaq/sp500（曾因此让纳指/标普掉到排序末尾）。
+const GLOBAL_ORDER = { nq: 0, es: 1, ym: 2, a50: 3, ixic: 4, dji: 5, inx: 6, int_hangseng: 7, int_nikkei: 8 };
 
 export async function getGlobal() {
   const [tx, sn] = await Promise.all([
     tencentGlobal().catch(() => []),
     sinaGlobal().catch(() => []),
   ]);
-  const all = [...tx, ...sn.filter((x) => x.key !== 'int_sp500' && !tx.some((t) => t.name === x.name))];
+  // 期货与现货是两类数据，都要保留：现货是「昨晚收盘结果」，期货是「此刻的预期」。
+  // 只按 key 去重（腾讯的 sp500 与新浪 int_sp500 同源会重复），不再按 name 去重，
+  // 否则「纳斯达克指数期货」和「纳斯达克」这类本应共存的条目会被误判。
+  const seen = new Set();
+  const all = [];
+  for (const x of [...tx, ...sn]) {
+    if (x.key === 'int_sp500') continue; // 与腾讯 sp500 重复
+    if (seen.has(x.key)) continue;
+    seen.add(x.key);
+    all.push(x);
+  }
   return all.sort((a, b) => (GLOBAL_ORDER[a.key] ?? 99) - (GLOBAL_ORDER[b.key] ?? 99));
 }
 
