@@ -297,20 +297,49 @@ tr.clickable { cursor: pointer; }
   .sidebar {
     position: fixed; z-index: 50; bottom: 0; left: 0; right: 0; top: auto;
     width: 100%; height: auto; flex-direction: row; align-items: center;
-    overflow-x: auto; border-right: none; border-top: 1px solid var(--border);
-    padding: 0 6px;
+    /* 滚动交给 .menu，sidebar 自己不再滚——否则 logo 和实时状态栏会被一起拖走 */
+    overflow: visible;
+    border-right: none; border-top: 1px solid var(--border);
+    padding: 0 6px; gap: 6px;
+    /* 避免横滑时触发浏览器「返回上一页」手势 */
+    overscroll-behavior-x: contain;
   }
   .shell.collapsed .sidebar { width: 100%; }
   .brand { border: none; padding: 8px 6px; flex: none; }
   .brand > div { display: none; }
-  .menu { display: flex; gap: 4px; padding: 4px; }
+  /* 只有菜单横滑；min-width:0 是关键，否则 flex 子项不会收缩、也就滚不起来 */
+  .menu {
+    flex: 1; min-width: 0;
+    display: flex; gap: 6px; padding: 6px 2px;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;   /* iOS 惯性滚动，缺了会觉得「黏手」 */
+    overscroll-behavior-x: contain;
+    scroll-snap-type: x proximity;        /* 滑动后吸附，便于定位 */
+    scrollbar-width: none;                /* 隐藏滚动条，整洁且不占高度 */
+  }
+  .menu::-webkit-scrollbar { display: none; }
   .menu-group { display: contents; }
   .menu-title { display: none; }
-  .menu-item { width: auto !important; flex: 0 0 auto; padding: 7px 10px; border-radius: 6px; }
+  .menu-item {
+    width: auto !important; flex: 0 0 auto;
+    padding: 8px 11px; border-radius: 6px;
+    scroll-snap-align: center;
+  }
   .menu-item .menu-label { white-space: nowrap; }
   .menu-item em { display: none; }
+  /* 实时状态栏固定不动，不参与横滑 */
   .sidebar-foot { border: none; padding: 6px; flex: none; }
   .collapse-btn { display: none; }
+
+  /* 两侧渐隐提示「这里还能横滑」——没有这个提示，用户根本不知道菜单可以左右拖。
+     absolute 定位脱离 flex 流，不占位；pointer-events:none 不挡点击 tab。 */
+  .sidebar::before,
+  .sidebar::after {
+    content: ''; position: absolute; top: 0; bottom: 0; width: 18px;
+    pointer-events: none; z-index: 2;
+  }
+  .sidebar::before { left: 0; background: linear-gradient(to right, var(--panel) 35%, transparent); }
+  .sidebar::after { right: 0; background: linear-gradient(to left, var(--panel) 35%, transparent); }
   .content { padding: 10px 10px 120px; }
   .cards { grid-template-columns: repeat(2, 1fr) !important; }
   .card .v { font-size: 20px; }

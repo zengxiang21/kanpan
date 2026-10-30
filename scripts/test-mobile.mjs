@@ -114,6 +114,29 @@ console.log('[8] 构建产物同步（若存在 dist）');
   }
 }
 
+console.log('[9] 底部 tab 横滑体验（用户反馈「不好滑动」）');
+{
+  // 曾经 overflow-x:auto 挂在 .sidebar 上，导致 logo 和实时状态栏被一起拖走；
+  // 且缺 -webkit-overflow-scrolling:touch，iOS 上觉得「黏手」
+  ok(!/\.sidebar\s*\{[^}]*overflow-x:\s*auto/.test(mobileBlock), '.sidebar 自身不再横滚（否则 logo/状态栏被拖走）');
+  ok(/\.menu\s*\{[^}]*flex:\s*1/.test(mobileBlock), '.menu 占满剩余宽度');
+  ok(/\.menu\s*\{[^}]*min-width:\s*0/.test(mobileBlock), '.menu min-width:0——否则 flex 子项不收缩、根本滚不起来');
+  ok(/\.menu\s*\{[^}]*overflow-x:\s*auto/.test(mobileBlock), '横滚落在 .menu 上');
+  ok(/-webkit-overflow-scrolling:\s*touch/.test(mobileBlock), 'iOS 惯性滚动');
+  ok(/overscroll-behavior-x:\s*contain/.test(mobileBlock), '防止横滑触发浏览器返回手势');
+  ok(/scroll-snap-type:\s*x proximity/.test(mobileBlock), '滑动吸附');
+  ok(/\.menu-item\s*\{[^}]*scroll-snap-align:\s*center/.test(mobileBlock), 'tab 参与吸附对齐');
+  ok(/scrollbar-width:\s*none/.test(mobileBlock), '隐藏滚动条');
+  ok(/\.menu::-webkit-scrollbar\s*\{\s*display:\s*none/.test(mobileBlock), 'WebKit 也隐藏滚动条');
+  // 视觉提示：没有它用户不知道能横滑
+  ok(/\.sidebar::before,[\s\S]{0,80}\.sidebar::after\s*\{/.test(mobileBlock), '有两侧渐隐遮罩');
+  ok(/\.sidebar::before\s*\{[^}]*linear-gradient/.test(mobileBlock), '左侧渐变');
+  ok(/\.sidebar::after\s*\{[^}]*linear-gradient/.test(mobileBlock), '右侧渐变');
+  ok(/\.sidebar::(before|after),\s*\.sidebar::(before|after)\s*\{[^}]*pointer-events:\s*none/.test(mobileBlock), '遮罩不挡点击');
+  // 状态栏必须固定
+  ok(/\.sidebar-foot\s*\{[^}]*flex:\s*none/.test(mobileBlock), 'sidebar-foot 不参与横滑');
+}
+
 console.log('');
 console.log(`===== ${pass} passed, ${fail} failed =====`);
 process.exit(fail ? 1 : 0);
