@@ -18,6 +18,8 @@ import { buildMacroCalendar } from './macro.js';
 import { buildEarningsCalendar } from './earnings.js';
 // 别名导入：history.js 已导出 getKline（A股日K），重名会直接 SyntaxError 起不来
 import { getKline as getOuterKline, getQuote as getOuterQuote } from './futures.js';
+import { buildMarginSummary, buildLiquidationRisk } from './margin.js';
+import { buildTreasury } from './treasury.js';
 import { todayEvents, anomalyDates, buildAnomalyReview, dayOf } from './anomaly.js';
 import { buildPlaybook } from './playbook.js';
 import { getUser, saveUser } from './userstore.js';
@@ -269,6 +271,34 @@ app.get('/api/kline', async (req, res) => {
   if (!/^\d{6}$/.test(code)) return res.status(400).json({ error: 'bad code' });
   try {
     res.json({ code, bars: await getKline(code, limit) });
+  } catch (e) {
+    res.status(502).json({ error: e.message });
+  }
+});
+
+// 两融余额与爆仓风险（东财数据中心）
+app.get('/api/margin', async (req, res) => {
+  try {
+    res.json(await buildMarginSummary());
+  } catch (e) {
+    res.status(502).json({ error: e.message });
+  }
+});
+
+app.get('/api/liquidation', async (req, res) => {
+  const date = String(req.query.date || state.tradingDay || '').trim();
+  try {
+    res.json(await buildLiquidationRisk(state, date));
+  } catch (e) {
+    res.status(502).json({ error: e.message });
+  }
+});
+
+// 美债收益率 + 历史百分位（FRED 公开 CSV）
+app.get('/api/treasury', async (req, res) => {
+  const limit = Math.min(500, Math.max(30, parseInt(req.query.limit, 10) || 120));
+  try {
+    res.json(await buildTreasury(limit));
   } catch (e) {
     res.status(502).json({ error: e.message });
   }

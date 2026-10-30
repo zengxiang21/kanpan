@@ -7,6 +7,8 @@
 //   Investing.com api.investing.com                                    → 403
 //   TradingView economic-calendar.tradingview.com                      → 无法连接
 //   FRED api.stlouisfed.org                                            → 需有效 API key
+//   （补充：同站的 fredgraph.csv 是公开端点、无需 key，美债收益率已用它实现，
+//     见 server/src/treasury.js——当初据此条误判「美债无免费源」）
 //   东财 api-dc-winner GetEconomicCalendar                             → 返回 HTML 首页
 //   新浪 7x24 / 东财快讯                                                → 快讯流，needCalender 全 false
 //   BLS 发布日程页                                                      → 403
@@ -16,6 +18,7 @@
 //   非农 = 每月第一个周五；CPI = 每月 10-15 号（BLS 通常 13 号前后）
 //   GDP / PMI / 零售 等按各自固定发布规律推算
 // 这不是爬虫，没有前值/预期值/实际值，但日期准确、对"盘前要不要规避"足够。
+// 注：美债收益率（含历史百分位）不在此文件，已由 server/src/treasury.js 用 FRED 公开端点实现。
 // 若日后找到可用源，替换 buildMacroCalendar 内部实现即可，接口不用变。
 
 // FOMC 日程（美联储官网，含 SEP 的会议标 *）

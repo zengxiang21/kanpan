@@ -58,6 +58,9 @@ export async function api(path) {
   }
   // 快照里的顶层字段即可直接命中；earnings/us 的 key 含斜杠，需显式映射
   if (key === 'earnings/us') return cloudCache.earnings || { events: [] };
+  if (key === 'margin') return cloudCache.margin || null;
+  if (key === 'liquidation') return cloudCache.liquidation || null;
+  if (key === 'treasury') return cloudCache.treasury || null;
   if (cloudCache[key] !== undefined) return cloudCache[key];
   if (key === 'reviewDates' || key === 'auctionDates' || key === 'plan') return [];
   return null;

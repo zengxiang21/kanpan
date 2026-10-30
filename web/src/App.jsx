@@ -15,6 +15,7 @@ import KnowledgePage from './components/KnowledgePage.jsx';
 import JournalPage from './components/JournalPage.jsx';
 import StockDetail from './components/StockDetail.jsx';
 import FutureDetail from './components/FutureDetail.jsx';
+import LiquidityPage from './components/LiquidityPage.jsx';
 import ReviewPage from './components/ReviewPage.jsx';
 import SectorsPage from './components/SectorsPage.jsx';
 import HeatmapPage from './components/HeatmapPage.jsx';
@@ -35,6 +36,7 @@ const MENU = [
       { key: 'emotion', label: '情绪总览', comp: EmotionPanel },
       { key: 'heatmap', label: '大盘云图', comp: HeatmapPage },
       { key: 'sectors', label: '板块轮动', comp: SectorsPage },
+      { key: 'liquidity', label: '杠杆与流动性', comp: LiquidityPage },
       { key: 'ranks', label: '市场扫描', comp: (p) => <Ranks {...p} />, badge: 'ranks' },
       { key: 'ztpool', label: '涨停天梯', comp: ZtPool, badge: 'zt' },
       { key: 'leaders', label: '龙头分层', comp: LeadersPage },
