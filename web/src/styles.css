@@ -306,12 +306,18 @@ tr.clickable { cursor: pointer; }
 
 /* ================= 手机端 ================= */
 @media (max-width: 768px) {
+  /* 菜单栏高度统一用一个变量：栏高、内容顶部留白、表格吸顶表头三处必须一致，
+     否则表头会被菜单栏压住（用户反馈「宏观日历/财报文案被遮挡」的根因）。
+     此前三处各写死（栏高靠内容撑≈45.9px、表头 top:46px、内容 padding 58px），
+     Microsoft YaHei 行高偏大时栏高逼近 46px，余量只剩 0.1px，一渲染差异就压住。
+     这里把栏高固定成 48px，三处同源，彻底消除竞态。 */
+  :root { --bar-h: 48px; }
+
   .shell { flex-direction: column; }
-  /* 菜单栏放顶部而非底部：底部会挡住内容、且横滑时容易和系统手势冲突。
-     布局为一行 [logo] [可横滚的菜单] [实时状态]，状态栏钉在右侧不参与滚动。 */
   .sidebar {
     position: fixed; z-index: 50; top: 0; bottom: auto; left: 0; right: 0;
-    width: 100%; height: auto; flex-direction: row; align-items: center;
+    height: var(--bar-h);
+    width: 100%; flex-direction: row; align-items: center;
     /* 滚动交给 .menu，sidebar 自己不再滚——否则 logo 和实时状态栏会被一起拖走 */
     overflow: visible;
     border-right: none; border-bottom: 1px solid var(--border);
@@ -362,14 +368,15 @@ tr.clickable { cursor: pointer; }
   .sidebar::before { left: 0; background: linear-gradient(to right, var(--panel) 35%, transparent); }
   .sidebar::after { right: 0; background: linear-gradient(to left, var(--panel) 35%, transparent); }
   /* 菜单栏在顶部，内容区改为上方留白（原来是底部 120px 避让底栏） */
-  .content { padding: 58px 10px 24px; }
+  .content { padding: calc(var(--bar-h) + 10px) 10px 24px; }
   .cards { grid-template-columns: repeat(2, 1fr) !important; }
   .card .v { font-size: 20px; }
   .index-strip { grid-template-columns: repeat(2, 1fr) !important; }
   .tbl { font-size: 12px; }
   .tbl td, .tbl th { padding: 5px 6px !important; }
-  /* 表头吸顶要避开顶部菜单栏（约 46px），否则会被 tab 压住看不见 */
-  .tbl th { top: 46px !important; }
+  /* 表头吸顶要避开顶部菜单栏，否则表格表头会被 tab 压住看不见。
+     用 --bar-h 与栏高同源，不写死 px——写死就会在字体行高变化时压住或留缝。 */
+  .tbl th { top: var(--bar-h) !important; }
   /* 手机端表格：横向滚动，而不是把内容逐字断行。
      曾经这里写成 white-space:normal + overflow-wrap:anywhere + word-break:break-word，
      中文没有空格，anywhere 会在任意字符间断行，结果每列只剩一个字的宽度、

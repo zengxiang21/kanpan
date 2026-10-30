@@ -122,10 +122,15 @@ console.log('[9] 顶部 tab 栏与横滑体验（用户先反馈「不好滑动�
   ok(/\.sidebar\s*\{[^}]*border-bottom:/.test(mobileBlock), '分隔线改为下边框（顶部栏在内容上方）');
   ok(!/\.sidebar\s*\{[^}]*border-top:/.test(mobileBlock), '不再用上边框');
   // 内容区留白方向要从底部避让改成顶部避让
-  ok(/\.content\s*\{\s*padding:\s*5\dpx/.test(mobileBlock), '内容区上方留白（避开顶部菜单栏）');
+  ok(/\.content\s*\{\s*padding:\s*calc\(var\(--bar-h\)/.test(mobileBlock), '内容顶部留白用 --bar-h 计算');
   ok(!/\.content\s*\{[^}]*padding:[^}]*120px/.test(mobileBlock), '不再留 120px 底部避让');
   // 表头吸顶必须避开菜单栏，否则被 tab 压住
-  ok(/\.tbl th\s*\{\s*top:\s*4\dpx/.test(mobileBlock), '表头吸顶下移到菜单栏之下');
+  ok(/\.tbl th\s*\{\s*top:\s*var\(--bar-h\)/.test(mobileBlock), '表头吸顶用 --bar-h（与栏高同源）');
+  // 三处必须同源：栏高、内容留白、表头 top 不能各写死，否则字体行高变化就压住/留缝
+  ok(/:root\s*\{\s*--bar-h:\s*\d+px/.test(mobileBlock), '定义了 --bar-h 变量');
+  ok(/\.sidebar\s*\{[^}]*height:\s*var\(--bar-h\)/.test(mobileBlock), '栏高用 --bar-h（固定高度，消除竞态）');
+  ok(!/\.tbl th\s*\{\s*top:\s*\d+px/.test(mobileBlock), '表头 top 不再写死 px');
+  ok(!/\.content\s*\{[^}]*padding:\s*\d+px\s+10px/.test(mobileBlock), '内容 padding-top 不再写死 px');
 
   // ---- 以下为横滑体验（上一轮修复，需保持） ----
   ok(!/\.sidebar\s*\{[^}]*overflow-x:\s*auto/.test(mobileBlock), '.sidebar 自身不再横滚（否则 logo/状态栏被拖走）');
