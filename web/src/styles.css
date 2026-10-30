@@ -294,12 +294,14 @@ tr.clickable { cursor: pointer; }
 /* ================= 手机端 ================= */
 @media (max-width: 768px) {
   .shell { flex-direction: column; }
+  /* 菜单栏放顶部而非底部：底部会挡住内容、且横滑时容易和系统手势冲突。
+     布局为一行 [logo] [可横滚的菜单] [实时状态]，状态栏钉在右侧不参与滚动。 */
   .sidebar {
-    position: fixed; z-index: 50; bottom: 0; left: 0; right: 0; top: auto;
+    position: fixed; z-index: 50; top: 0; bottom: auto; left: 0; right: 0;
     width: 100%; height: auto; flex-direction: row; align-items: center;
     /* 滚动交给 .menu，sidebar 自己不再滚——否则 logo 和实时状态栏会被一起拖走 */
     overflow: visible;
-    border-right: none; border-top: 1px solid var(--border);
+    border-right: none; border-bottom: 1px solid var(--border);
     padding: 0 6px; gap: 6px;
     /* 避免横滑时触发浏览器「返回上一页」手势 */
     overscroll-behavior-x: contain;
@@ -340,12 +342,15 @@ tr.clickable { cursor: pointer; }
   }
   .sidebar::before { left: 0; background: linear-gradient(to right, var(--panel) 35%, transparent); }
   .sidebar::after { right: 0; background: linear-gradient(to left, var(--panel) 35%, transparent); }
-  .content { padding: 10px 10px 120px; }
+  /* 菜单栏在顶部，内容区改为上方留白（原来是底部 120px 避让底栏） */
+  .content { padding: 58px 10px 24px; }
   .cards { grid-template-columns: repeat(2, 1fr) !important; }
   .card .v { font-size: 20px; }
   .index-strip { grid-template-columns: repeat(2, 1fr) !important; }
   .tbl { font-size: 12px; }
   .tbl td, .tbl th { padding: 5px 6px !important; }
+  /* 表头吸顶要避开顶部菜单栏（约 46px），否则会被 tab 压住看不见 */
+  .tbl th { top: 46px !important; }
   /* 手机端表格：横向滚动，而不是把内容逐字断行。
      曾经这里写成 white-space:normal + overflow-wrap:anywhere + word-break:break-word，
      中文没有空格，anywhere 会在任意字符间断行，结果每列只剩一个字的宽度、

@@ -114,10 +114,20 @@ console.log('[8] 构建产物同步（若存在 dist）');
   }
 }
 
-console.log('[9] 底部 tab 横滑体验（用户反馈「不好滑动」）');
+console.log('[9] 顶部 tab 栏与横滑体验（用户先反馈「不好滑动」，再要求「不在底部」）');
 {
-  // 曾经 overflow-x:auto 挂在 .sidebar 上，导致 logo 和实时状态栏被一起拖走；
-  // 且缺 -webkit-overflow-scrolling:touch，iOS 上觉得「黏手」
+  // 菜单栏已从底部移到顶部：底部会挡住内容、横滑也容易和系统手势冲突
+  ok(/\.sidebar\s*\{[^}]*top:\s*0/.test(mobileBlock), '菜单栏固定在顶部');
+  ok(!/\.sidebar\s*\{[^}]*bottom:\s*0/.test(mobileBlock), '不再固定底部');
+  ok(/\.sidebar\s*\{[^}]*border-bottom:/.test(mobileBlock), '分隔线改为下边框（顶部栏在内容上方）');
+  ok(!/\.sidebar\s*\{[^}]*border-top:/.test(mobileBlock), '不再用上边框');
+  // 内容区留白方向要从底部避让改成顶部避让
+  ok(/\.content\s*\{\s*padding:\s*5\dpx/.test(mobileBlock), '内容区上方留白（避开顶部菜单栏）');
+  ok(!/\.content\s*\{[^}]*padding:[^}]*120px/.test(mobileBlock), '不再留 120px 底部避让');
+  // 表头吸顶必须避开菜单栏，否则被 tab 压住
+  ok(/\.tbl th\s*\{\s*top:\s*4\dpx/.test(mobileBlock), '表头吸顶下移到菜单栏之下');
+
+  // ---- 以下为横滑体验（上一轮修复，需保持） ----
   ok(!/\.sidebar\s*\{[^}]*overflow-x:\s*auto/.test(mobileBlock), '.sidebar 自身不再横滚（否则 logo/状态栏被拖走）');
   ok(/\.menu\s*\{[^}]*flex:\s*1/.test(mobileBlock), '.menu 占满剩余宽度');
   ok(/\.menu\s*\{[^}]*min-width:\s*0/.test(mobileBlock), '.menu min-width:0——否则 flex 子项不收缩、根本滚不起来');
