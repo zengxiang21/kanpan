@@ -207,14 +207,14 @@ export default function PreMarket({ tick, onOpenStock }) {
             <tbody>
               {(macro?.events || []).slice(0, 12).map((e) => (
                 <tr key={e.date + e.title} className={e.daysAhead === 0 ? 'row-today' : ''}>
-                  <td className="name" style={{ width: 92 }}>
+                  <td className="name" style={{ maxWidth: 92 }}>
                     {e.date}
                     {e.daysAhead === 0 && <em className="label lab-hot" style={{ marginLeft: 4 }}>今日</em>}
                     {e.daysAhead > 0 && e.daysAhead <= 2 && <em className="label lab-warm" style={{ marginLeft: 4 }}>{e.daysAway || e.daysAhead}天后</em>}
                   </td>
-                  <td className="muted" style={{ width: 70 }}>{e.time}</td>
-                  <td style={{ width: 150 }}>{e.title}</td>
-                  <td style={{ width: 60 }}>{'★'.repeat(e.importance)}</td>
+                  <td className="muted" style={{ maxWidth: 70 }}>{e.time}</td>
+                  <td style={{ maxWidth: 150 }}>{e.title}</td>
+                  <td style={{ maxWidth: 60 }}>{'★'.repeat(e.importance)}</td>
                   <td className="muted reasons-cell">{e.note}</td>
                 </tr>
               ))}
@@ -241,21 +241,21 @@ export default function PreMarket({ tick, onOpenStock }) {
             <tbody>
               {(earnings?.events || []).map((e) => (
                 <tr key={e.ticker} className={e.status === 'today' ? 'row-today' : ''}>
-                  <td className="name" style={{ width: 128 }}>
+                  <td className="name" style={{ maxWidth: 128 }}>
                     {e.date}
                     {e.windowEnd && e.windowEnd !== e.date && <span className="muted"> ~ {e.windowEnd}</span>}
                     {e.status === 'today' && <em className="label lab-hot" style={{ marginLeft: 4 }}>今晚</em>}
                     {e.status === 'upcoming' && e.daysAhead <= 3 && <em className="label lab-warm" style={{ marginLeft: 4 }}>{e.daysAhead}天后</em>}
                     {e.status === 'justPassed' && <small className="muted" style={{ marginLeft: 4 }}>刚过{-e.daysAhead}天</small>}
                   </td>
-                  <td style={{ width: 110 }}>
+                  <td style={{ maxWidth: 110 }}>
                     {e.company}
                     <small className="muted"> {e.ticker}</small>
                     <small className="muted">{'★'.repeat(e.importance)}</small>
                   </td>
-                  <td className="muted" style={{ width: 120 }}>{e.chain}</td>
+                  <td className="muted" style={{ maxWidth: 120 }}>{e.chain}</td>
                   <td className="reasons-cell" style={{ color: 'var(--accent)' }}>{e.aShare}</td>
-                  <td className="muted" style={{ width: 96 }}>
+                  <td className="muted" style={{ maxWidth: 96 }}>
                     {e.lastReport || '-'}
                     {e.lastDaysAgo != null && <small>（{e.lastDaysAgo}天前）</small>}
                   </td>
@@ -289,8 +289,8 @@ export default function PreMarket({ tick, onOpenStock }) {
             <tbody>
               {(sent?.themes || []).slice(0, 8).map((t) => (
                 <tr key={t.name}>
-                  <td className="name" style={{ width: 90 }}>{t.name}</td>
-                  <td style={{ width: 60 }} className={t.count >= 3 ? 'up bold' : ''}>{t.count} 条</td>
+                  <td className="name" style={{ maxWidth: 90 }}>{t.name}</td>
+                  <td style={{ maxWidth: 60 }} className={t.count >= 3 ? 'up bold' : ''}>{t.count} 条</td>
                   <td className="muted reasons-cell">{(t.examples || []).join('；')}</td>
                 </tr>
               ))}

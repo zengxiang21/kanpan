@@ -291,7 +291,7 @@ export default function KnowledgePage() {
               <h3>术语表</h3>
               <table className="tbl compact">
                 <tbody>
-                  {TERMS.map((r) => (<tr key={r[0]}><td className="name" style={{ width: 90 }}>{r[0]}</td><td className="muted">{r[1]}</td></tr>))}
+                  {TERMS.map((r) => (<tr key={r[0]}><td className="name" style={{ maxWidth: 90 }}>{r[0]}</td><td className="muted">{r[1]}</td></tr>))}
                 </tbody>
               </table>
             </div>
@@ -384,7 +384,7 @@ export default function KnowledgePage() {
           <div className="panel" style={{ marginBottom: 12 }}>
             <h3>分时盘口语言（一天 9 个关键时点）</h3>
             <table className="tbl compact">
-              <thead><tr><th style={{ width: 110 }}>时段</th><th>盘面特征</th><th>怎么读</th><th>动作</th></tr></thead>
+              <thead><tr><th style={{ maxWidth: 110 }}>时段</th><th>盘面特征</th><th>怎么读</th><th>动作</th></tr></thead>
               <tbody>
                 {INTRADAY.map((r) => (
                   <tr key={r.t}>
@@ -418,7 +418,7 @@ export default function KnowledgePage() {
             <div className="panel">
               <h3>超短五条铁律（环境→方向→标的→买点→纪律）</h3>
               <table className="tbl compact">
-                <thead><tr><th style={{ width: 110 }}>铁律</th><th>内容</th><th>为什么</th></tr></thead>
+                <thead><tr><th style={{ maxWidth: 110 }}>铁律</th><th>内容</th><th>为什么</th></tr></thead>
                 <tbody>
                   {MARKET_RULES.map((r) => (
                     <tr key={r.rule}>
@@ -482,7 +482,7 @@ export default function KnowledgePage() {
                 <>
                   <div className="plan-note">{c.bg}</div>
                   <table className="tbl compact">
-                    <thead><tr><th style={{ width: 110 }}>时间</th><th>盘面</th><th style={{ width: 280 }}>决策（对应系统功能）</th></tr></thead>
+                    <thead><tr><th style={{ maxWidth: 110 }}>时间</th><th>盘面</th><th style={{ maxWidth: 280 }}>决策（对应系统功能）</th></tr></thead>
                     <tbody>
                       {c.timeline.map((r, i) => (
                         <tr key={i}>
@@ -531,7 +531,7 @@ export default function KnowledgePage() {
                 </div>
                 <div className="plan-note">{c.bg}</div>
                 <table className="tbl compact">
-                  <thead><tr><th style={{ width: 120 }}>阶段</th><th>盘面特征</th></tr></thead>
+                  <thead><tr><th style={{ maxWidth: 120 }}>阶段</th><th>盘面特征</th></tr></thead>
                   <tbody>
                     {c.stages.map((r, i) => (<tr key={i}><td className="name">{r[0]}</td><td className="case-plain">{r[1]}</td></tr>))}
                   </tbody>
@@ -565,7 +565,7 @@ export default function KnowledgePage() {
         <div className="panel">
           <h3>交易纪律详细版（调研高胜率超短手的共性规则）</h3>
           <table className="tbl compact">
-            <thead><tr><th style={{ width: 120 }}>纪律</th><th>规则</th><th style={{ width: 260 }}>执行细节</th></tr></thead>
+            <thead><tr><th style={{ maxWidth: 120 }}>纪律</th><th>规则</th><th style={{ maxWidth: 260 }}>执行细节</th></tr></thead>
             <tbody>
               {DISCIPLINE.map((r) => (
                 <tr key={r[0]}><td className="name">{r[0]}</td><td>{r[1]}</td><td className="muted case-plain">{r[2]}</td></tr>
@@ -604,7 +604,7 @@ export default function KnowledgePage() {
             <h3>书单</h3>
             <table className="tbl compact">
               <tbody>
-                {BOOKS.map((r) => (<tr key={r[0]}><td className="name" style={{ width: 190 }}>{r[0]}</td><td className="muted">{r[1]}</td></tr>))}
+                {BOOKS.map((r) => (<tr key={r[0]}><td className="name" style={{ maxWidth: 190 }}>{r[0]}</td><td className="muted">{r[1]}</td></tr>))}
               </tbody>
             </table>
           </div>

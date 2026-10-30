@@ -21,6 +21,10 @@ body {
   color: var(--text);
   font-family: "Microsoft YaHei", "PingFang SC", system-ui, -apple-system, sans-serif;
   font-size: 14px;
+  /* 兜底：任何漏网的长串（英文代码、URL、连续符号）都能断行，
+     且 body 自身不产生横向滚动条，避免整页被撑宽后要左右滑 */
+  overflow-wrap: anywhere;
+  overflow-x: hidden;
 }
 
 /* ================= 布局：左侧菜单 ================= */
@@ -179,7 +183,7 @@ body {
 .flat { color: var(--flat); }
 .muted { color: var(--muted); }
 .watched { color: var(--muted); font-size: 12px; }
-.reasons-cell { white-space: normal !important; min-width: 180px; }
+.reasons-cell { white-space: normal !important; min-width: 180px; max-width: 520px; overflow-wrap: anywhere; }
 .row-up td { background: rgba(255, 82, 82, 0.05); }
 .row-down td { background: rgba(46, 204, 143, 0.05); }
 
@@ -313,6 +317,23 @@ tr.clickable { cursor: pointer; }
   .index-strip { grid-template-columns: repeat(2, 1fr) !important; }
   .tbl { font-size: 12px; }
   .tbl td, .tbl th { padding: 5px 6px !important; }
+  /* 手机端核心修复：桌面端 td 是 nowrap（对齐好看），但窄屏下必然横向溢出。
+     这里放开换行 + 强制断词，让长文案在单元格内折行而不是把整页撑宽。 */
+  .tbl td, .tbl th { white-space: normal !important; overflow-wrap: anywhere; word-break: break-word; }
+  /* 源码已把 inline width 全改成 maxWidth，这里只做防御：
+     万一以后有人再写 inline width，手机上强制转 auto，不让它顶破布局。
+     不要在这里覆盖 max-width——那会放宽源码里合理的 128px/96px 等列宽上限。 */
+  .tbl td[style*="width"], .tbl th[style*="width"] { width: auto !important; }
+  .reasons-cell { min-width: 0 !important; max-width: 100% !important; }
+  .score-cell { min-width: 0 !important; }
+  .plan-action, .case-plain { white-space: normal !important; }
+  .lp-cell { min-width: 0 !important; }
+  /* 这两个 260px 的 min-width 在 375px 屏上会顶破 flex/grid 容器 */
+  .tp-reasons, .wide-card { min-width: 0 !important; }
+  /* flex/grid 子项默认 min-width:auto，长内容会把容器撑宽，必须显式归零 */
+  .panel, .row2 > *, .ranks > *, .cards > * { min-width: 0; }
+  .hint { overflow-wrap: anywhere; }
+  .page-title, .panel h3 { overflow-wrap: anywhere; }
   .score-break { display: none; }
   .page-title { font-size: 15px; flex-wrap: wrap; }
   .plan-cond { width: 120px; }

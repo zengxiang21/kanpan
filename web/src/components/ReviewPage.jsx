@@ -158,7 +158,7 @@ function PlanCard({ plan, onOpenStock }) {
       </div>
       <div className="plan-note">{plan.modeNote}</div>
       <table className="tbl compact">
-        <thead><tr><th style={{ width: 210 }}>竞价情景</th><th>操作</th></tr></thead>
+        <thead><tr><th style={{ maxWidth: 210 }}>竞价情景</th><th>操作</th></tr></thead>
         <tbody>
           {plan.scenarios.map((s, i) => (
             <tr key={i}>
