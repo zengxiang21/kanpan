@@ -490,6 +490,20 @@ tr.clickable { cursor: pointer; }
 .hm-cell.hm-unmapped { border-style: dashed; border-color: #6e7681; opacity: .72; }
 .hm-cell.hm-unmapped:hover { opacity: 1; }
 
+/* 选中态：格子背景色已表示行业平均涨跌幅，不能改背景，
+   否则会和涨跌配色冲突。改用外圈高亮 + 轻微放大，选中哪个一眼可见。 */
+.hm-cell.hm-picked {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+  box-shadow: 0 0 0 4px rgba(88, 166, 255, .18);
+  transform: translateY(-2px) scale(1.03);
+  z-index: 3;
+}
+.hm-cell.hm-picked:hover { transform: translateY(-2px) scale(1.03); }
+
+/* 详情面板：加左侧强调边，让"当前看的是这个行业"更明确 */
+.hm-detail-panel { border-left: 3px solid var(--accent); }
+
 /* 图例 */
 .hm-legend { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-top: 10px; font-size: 11px; color: var(--muted); }
 .hm-scale { display: flex; gap: 2px; }

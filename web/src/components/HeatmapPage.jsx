@@ -1,11 +1,12 @@
 // 大盘云图：全市场按行业分格的涨跌热力图
 // 数据来自 /api/heatmap（本地全市场快照聚合，无额外外部请求）
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { fmtPct } from '../lib/format.js';
 import { api, CLOUD } from '../lib/api.js';
 
-function clsOf(g) {
-  return `hm-cell hm-${g.bucket}${g.shade ? ` hm-s${g.shade > 0 ? 'p' : 'n'}` : ''}${g.unmapped ? ' hm-unmapped' : ''}`;
+function clsOf(g, pickedIndustry) {
+  const on = pickedIndustry === g.industry ? ' hm-picked' : '';
+  return `hm-cell hm-${g.bucket}${g.shade ? ` hm-s${g.shade > 0 ? 'p' : 'n'}` : ''}${g.unmapped ? ' hm-unmapped' : ''}${on}`;
 }
 
 const SORTS = [
@@ -28,6 +29,17 @@ export default function HeatmapPage({ onOpenStock }) {
   const [sort, setSort] = useState('heat');
   const [filter, setFilter] = useState('all');
   const [picked, setPicked] = useState(null);
+  const detailRef = useRef(null);
+
+  // 详情面板在云图网格之后，而云图有几百个格子，点完不滚的话反馈在屏幕外。
+  // 选中变化时把面板带到视口；用户手动点空白处取消时不滚（避免把页面拽走）。
+  useEffect(() => {
+    if (!picked) return;
+    const id = requestAnimationFrame(() => {
+      detailRef.current?.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+    });
+    return () => cancelAnimationFrame(id);
+  }, [picked]);
 
   useEffect(() => {
     let stop = false;
@@ -129,7 +141,7 @@ export default function HeatmapPage({ onOpenStock }) {
         {shown.map((g) => (
           <button
             key={g.industry}
-            className={clsOf(g)}
+            className={clsOf(g, picked?.industry)}
             onClick={() => setPicked(picked?.industry === g.industry ? null : g)}
             title={`${g.industry}：均涨 ${g.avgPct > 0 ? '+' : ''}${g.avgPct}% · ${g.count} 只（${g.up} 涨 / ${g.down} 跌）${g.limitUp ? ` · 涨停 ${g.limitUp}` : ''}`}
           >
@@ -158,7 +170,7 @@ export default function HeatmapPage({ onOpenStock }) {
       </div>
 
       {picked && (
-        <div className="panel" style={{ marginTop: 12 }}>
+        <div className="panel hm-detail-panel" style={{ marginTop: 12 }} ref={detailRef}>
           <h3>
             {picked.industry}
             <span className="muted" style={{ fontSize: 12, fontWeight: 'normal', marginLeft: 8 }}>
