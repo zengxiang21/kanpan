@@ -14,6 +14,7 @@ import AnomalyPage from './components/AnomalyPage.jsx';
 import KnowledgePage from './components/KnowledgePage.jsx';
 import JournalPage from './components/JournalPage.jsx';
 import StockDetail from './components/StockDetail.jsx';
+import FutureDetail from './components/FutureDetail.jsx';
 import ReviewPage from './components/ReviewPage.jsx';
 import SectorsPage from './components/SectorsPage.jsx';
 import HeatmapPage from './components/HeatmapPage.jsx';
@@ -181,7 +182,10 @@ export default function App() {
 
       <main className="content">
         {stock ? (
-          <StockDetail code={stock.code} name={stock.name} onBack={() => setStock(null)} onWatch={addWatch} />
+          // 外盘期货（code 形如 hf_NQ）与 A 股是两套数据源，分流到各自的详情页
+          String(stock.code).startsWith('hf_')
+            ? <FutureDetail code={stock.code} name={stock.name} onBack={() => setStock(null)} />
+            : <StockDetail code={stock.code} name={stock.name} onBack={() => setStock(null)} onWatch={addWatch} />
         ) : (
           <>
             {showStrip && <IndexStrip tick={tick} />}

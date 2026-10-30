@@ -19,12 +19,25 @@ function UsCard({ s }) {
   );
 }
 
-function GlobalCard({ g }) {
+// 可点击看K线的品种：期货用 hf_ 前缀（App.jsx 据此分流到 FutureDetail），
+// 美股三指数现货用腾讯的 us 代码；其余（恒指/日经/A50无K线源的）不传 code 就不可点
+const KLINE_CODE = {
+  nq: 'hf_NQ', es: 'hf_ES', ym: 'hf_YM',
+  ixic: 'usIXIC', dji: 'usDJI', inx: 'usINX',
+};
+
+function GlobalCard({ g, onOpenStock }) {
   const flash = useFlash(g.price);
+  const kcode = KLINE_CODE[g.key];
+  const clickable = !!kcode;
   return (
-    <div className={`us-card ${flash}`}>
+    <div
+      className={`us-card ${flash} ${clickable ? 'dir-btn' : ''}`}
+      onClick={clickable ? () => onOpenStock?.(kcode, g.name) : undefined}
+      title={clickable ? `${g.name} · 点击看K线` : g.name}
+    >
       <div className="us-head"><b>{g.name}</b><span className={g.pct > 0 ? 'up' : g.pct < 0 ? 'down' : 'muted'}>{g.pct > 0 ? '+' : ''}{g.pct}%</span></div>
-      <div className="muted" style={{ fontSize: 11 }}>{GLOBAL_MAP[g.name] || ''} · {g.price}</div>
+      <div className="muted" style={{ fontSize: 11 }}>{GLOBAL_MAP[g.name] || ''} · {g.price}{clickable ? ' · 看K线' : ''}</div>
     </div>
   );
 }
@@ -182,7 +195,7 @@ export default function PreMarket({ tick, onOpenStock }) {
       <div className="panel" style={{ marginBottom: 12 }}>
         <h3>隔夜外围 · 方向映射 <span className="page-tag">5 秒实时</span></h3>
         <div className="us-grid">
-          {global.map((g) => <GlobalCard key={g.key} g={g} />)}
+          {global.map((g) => <GlobalCard key={g.key} g={g} onOpenStock={onOpenStock} />)}
           {global.length === 0 && <div className="empty">加载中…</div>}
         </div>
         <div className="hint">A50 期货是最直接的 A 股开盘先行指标</div>

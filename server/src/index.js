@@ -16,6 +16,8 @@ import { buildHeatmap } from './heatmap.js';
 import { buildLeaderPool } from './leaderpool.js';
 import { buildMacroCalendar } from './macro.js';
 import { buildEarningsCalendar } from './earnings.js';
+// 别名导入：history.js 已导出 getKline（A股日K），重名会直接 SyntaxError 起不来
+import { getKline as getOuterKline, getQuote as getOuterQuote } from './futures.js';
 import { todayEvents, anomalyDates, buildAnomalyReview, dayOf } from './anomaly.js';
 import { buildPlaybook } from './playbook.js';
 import { getUser, saveUser } from './userstore.js';
@@ -267,6 +269,27 @@ app.get('/api/kline', async (req, res) => {
   if (!/^\d{6}$/.test(code)) return res.status(400).json({ error: 'bad code' });
   try {
     res.json({ code, bars: await getKline(code, limit) });
+  } catch (e) {
+    res.status(502).json({ error: e.message });
+  }
+});
+
+// 外盘品种（期货 hf_ 前缀 + 美股指数 us 前缀）：实时报价 + 日K
+// 只有日K，无分时——分钟线源实测全部不可用，见 server/src/futures.js 注释
+app.get('/api/future/quote', async (req, res) => {
+  const code = String(req.query.code || '').trim();
+  try {
+    res.json(await getOuterQuote(code));
+  } catch (e) {
+    res.status(502).json({ error: e.message });
+  }
+});
+
+app.get('/api/future/kline', async (req, res) => {
+  const code = String(req.query.code || '').trim();
+  const limit = Math.min(400, Math.max(20, parseInt(req.query.limit, 10) || 120));
+  try {
+    res.json({ code, bars: await getOuterKline(code, limit) });
   } catch (e) {
     res.status(502).json({ error: e.message });
   }

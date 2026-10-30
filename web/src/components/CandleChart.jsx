@@ -10,17 +10,21 @@ function ma(closes, n) {
   });
 }
 
-export default function CandleChart({ code, name }) {
+export default function CandleChart({ code, name, src }) {
   const [data, setData] = useState(null);
   const [err, setErr] = useState(null);
   const [limit, setLimit] = useState(60);
   const [hover, setHover] = useState(null);
 
+  // src 可覆盖数据源：A 股默认走 /api/kline；外盘期货传 /api/future/kline。
+  // 两边 bars 格式一致（[day, open, close, high, low, volume]），图表逻辑完全复用。
+  const url = `${src || `/api/kline?code=${code}`}&limit=${limit}`;
+
   useEffect(() => {
     let stop = false;
     (async () => {
       try {
-        const d = await (await fetch(`/api/kline?code=${code}&limit=${limit}`)).json();
+        const d = await (await fetch(url)).json();
         if (!stop) {
           if (d.error) setErr(d.error);
           else { setData(d.bars); setErr(null); }
@@ -30,7 +34,7 @@ export default function CandleChart({ code, name }) {
       }
     })();
     return () => { stop = true; };
-  }, [code, limit]);
+  }, [url]);
 
   if (err) return <div className="empty">K线加载失败：{err}</div>;
   if (!data) return <div className="empty">K线加载中…</div>;
