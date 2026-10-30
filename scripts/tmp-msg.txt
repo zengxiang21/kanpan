@@ -1,0 +1,19 @@
+fix: 手机顶部栏右侧瘦身，把宽度还给可横滑菜单
+
+用户反馈「滑动条太小了，右侧固定的太多」。实测 375px 视口下：
+改前右侧固定区占 156px + logo 42px + padding/gap 24px = 222px，
+可横滑菜单只剩 153px，一个 tab 约 74px → 一行只能看见 1 个。
+
+右侧瘦身：手机端隐藏日期与备源角标（这两项在页面里另有展示），
+只留状态灯 + 时间 + 交易阶段；sidebar padding 6px→4px、gap 6px→4px。
+logo 30px→24px、padding 8px/6px→6px/4px。
+结果：菜单可用宽度 153px → 260px，一行可见 tab 从 1 个变 3 个。
+
+顺手修一个既有 bug：.dot/.ts/.phase/.day/.fallback-badge 这五个 class
+在 CSS 里完全没有定义。.dot 是个没有 width/height 的空 div，
+也就是说实时连接状态灯从来没显示过。已补全样式（桌面+手机通用）：
+.dot 7px 圆点、.dot.on 绿色带光晕、时间用 tabular-nums 防刷新抖动、
+.phase 提高对比度、.fallback-badge 加边框底色。
+
+test-mobile.mjs 新增 [10] 组 7 条断言 + [9] 组补 4 条，共 60 例。
+全部 13 套件共 493 例通过。

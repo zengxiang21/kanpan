@@ -145,6 +145,24 @@ console.log('[9] 顶部 tab 栏与横滑体验（用户先反馈「不好滑动�
   ok(/\.sidebar::(before|after),\s*\.sidebar::(before|after)\s*\{[^}]*pointer-events:\s*none/.test(mobileBlock), '遮罩不挡点击');
   // 状态栏必须固定
   ok(/\.sidebar-foot\s*\{[^}]*flex:\s*none/.test(mobileBlock), 'sidebar-foot 不参与横滑');
+
+  // ---- 右侧固定区要瘦身，把宽度让给可横滑菜单（用户反馈「滑动条太小，右侧固定的太多」）----
+  ok(/\.sidebar-foot\s*\.day,[\s\S]{0,40}\.sidebar-foot\s*\.fallback-badge\s*\{\s*display:\s*none/.test(mobileBlock), '手机端隐藏日期与备源角标（二者页面另有展示，却白占约90px）');
+  ok(!/\.sidebar-foot\s*\.ts\s*\{\s*display:\s*none/.test(mobileBlock), '保留时间（数据新鲜度是关键信息）');
+  ok(!/\.sidebar-foot\s*\.phase\s*\{\s*display:\s*none/.test(mobileBlock), '保留交易阶段');
+  ok(/\.brand\s*\.logo\s*\{\s*width:\s*2\dpx/.test(mobileBlock), 'logo 缩小，让位菜单');
+}
+
+console.log('[10] 状态灯样式（此前 .dot/.ts/.phase/.day/.fallback-badge 完全无样式定义）');
+{
+  // .dot 原本是个没有 width/height 的空 div —— 实时状态灯其实从来没显示过
+  ok(/\.dot\s*\{[^}]*width:\s*\d+px/.test(css), '.dot 有尺寸（否则状态灯不可见）');
+  ok(/\.dot\s*\{[^}]*border-radius:\s*50%/.test(css), '.dot 是圆形');
+  ok(/\.dot\.on\s*\{/.test(css), '有 .dot.on 在线态');
+  ok(/\.dot\.on\s*\{[^}]*background/.test(css), '在线态有颜色');
+  ok(/\.sidebar-foot\s*\.phase\s*\{/.test(css), '.phase 有样式（阶段文字可读）');
+  ok(/\.fallback-badge\s*\{/.test(css), '.fallback-badge 有样式（桌面端可见）');
+  ok(/\.sidebar-foot\s*\.ts\s*\{[^}]*tabular-nums/.test(css), '时间用等宽数字，刷新时不抖动');
 }
 
 console.log('');

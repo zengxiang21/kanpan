@@ -72,6 +72,19 @@ body {
   padding: 10px 12px; border-top: 1px solid var(--border);
   display: flex; align-items: center; gap: 8px; flex-wrap: wrap; font-size: 11px; color: var(--muted);
 }
+/* 实时连接指示灯：此前这些 class 完全没样式，.dot 是个不可见的空 div，
+   状态灯其实从来没显示过。这里补上（桌面+手机通用）。 */
+.dot {
+  width: 7px; height: 7px; border-radius: 50%; flex: none;
+  background: #6e7681; transition: background .2s;
+}
+.dot.on { background: var(--up); box-shadow: 0 0 6px rgba(46, 204, 143, .6); }
+.sidebar-foot .ts { font-variant-numeric: tabular-nums; }
+.sidebar-foot .phase { color: var(--text); }
+.fallback-badge {
+  color: var(--warn); border: 1px solid var(--warn);
+  border-radius: 4px; padding: 0 4px; font-size: 10px;
+}
 .collapse-btn {
   margin-left: auto; background: #21262d; border: 1px solid var(--border); color: var(--muted);
   border-radius: 5px; width: 26px; height: 24px; cursor: pointer; font-size: 12px;
@@ -302,13 +315,15 @@ tr.clickable { cursor: pointer; }
     /* 滚动交给 .menu，sidebar 自己不再滚——否则 logo 和实时状态栏会被一起拖走 */
     overflow: visible;
     border-right: none; border-bottom: 1px solid var(--border);
-    padding: 0 6px; gap: 6px;
+    padding: 0 4px; gap: 4px;
     /* 避免横滑时触发浏览器「返回上一页」手势 */
     overscroll-behavior-x: contain;
   }
   .shell.collapsed .sidebar { width: 100%; }
-  .brand { border: none; padding: 8px 6px; flex: none; }
+  /* logo 只作品牌标识，压缩 padding 与尺寸，把宽度让给可横滑菜单 */
+  .brand { border: none; padding: 6px 4px; flex: none; }
   .brand > div { display: none; }
+  .brand .logo { width: 24px; height: 24px; font-size: 14px; border-radius: 6px; }
   /* 只有菜单横滑；min-width:0 是关键，否则 flex 子项不会收缩、也就滚不起来 */
   .menu {
     flex: 1; min-width: 0;
@@ -329,8 +344,12 @@ tr.clickable { cursor: pointer; }
   }
   .menu-item .menu-label { white-space: nowrap; }
   .menu-item em { display: none; }
-  /* 实时状态栏固定不动，不参与横滑 */
-  .sidebar-foot { border: none; padding: 6px; flex: none; }
+  /* 实时状态栏固定不动，不参与横滑。
+     手机上只留「状态灯 + 时间 + 交易阶段」，日期和备源角标隐藏——
+     这两项在页面里另有展示，却在这里白占约 90px，把可横滑的菜单挤到只剩两个 tab。 */
+  .sidebar-foot { border: none; padding: 6px 4px; flex: none; gap: 4px; }
+  .sidebar-foot .day,
+  .sidebar-foot .fallback-badge { display: none; }
   .collapse-btn { display: none; }
 
   /* 两侧渐隐提示「这里还能横滑」——没有这个提示，用户根本不知道菜单可以左右拖。
