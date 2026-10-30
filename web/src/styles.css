@@ -317,9 +317,24 @@ tr.clickable { cursor: pointer; }
   .index-strip { grid-template-columns: repeat(2, 1fr) !important; }
   .tbl { font-size: 12px; }
   .tbl td, .tbl th { padding: 5px 6px !important; }
-  /* 手机端核心修复：桌面端 td 是 nowrap（对齐好看），但窄屏下必然横向溢出。
-     这里放开换行 + 强制断词，让长文案在单元格内折行而不是把整页撑宽。 */
-  .tbl td, .tbl th { white-space: normal !important; overflow-wrap: anywhere; word-break: break-word; }
+  /* 手机端表格：横向滚动，而不是把内容逐字断行。
+     曾经这里写成 white-space:normal + overflow-wrap:anywhere + word-break:break-word，
+     中文没有空格，anywhere 会在任意字符间断行，结果每列只剩一个字的宽度、
+     一只票名竖着排开——比溢出更难读。正确做法是保持列宽、让面板内横滚。 */
+  .panel { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+  /* min-width 用 max-content：表格按内容自然展开，列不会被压缩到一字一行，
+     超宽部分在 .panel 内横滚。比写死 460px 更能适配 3~7 列的不同表格。 */
+  .tbl { min-width: max-content; }
+  .tbl td, .tbl th { white-space: nowrap; }
+  /* 长文案列仍然要换行（这些列本身有专门 class，且内容确实长） */
+  .reasons-cell, .plan-action, .case-plain { white-space: normal !important; }
+  /* 股票 chip 要保证票名（最多 4 汉字 @13px ≈ 52px + padding 18px）能单行显示。
+     曾经把 min-width 归零，chip 被压到极窄，票名同样逐字竖排。 */
+  .stock-chip { min-width: 86px; }
+  .stock-chip b { white-space: nowrap; }
+  .lp-cell { min-width: 118px; }
+  .lp-cell > b { flex-wrap: nowrap; }
+  .lp-cell > b > :first-child { white-space: nowrap; }
   /* 源码已把 inline width 全改成 maxWidth，这里只做防御：
      万一以后有人再写 inline width，手机上强制转 auto，不让它顶破布局。
      不要在这里覆盖 max-width——那会放宽源码里合理的 128px/96px 等列宽上限。 */
@@ -327,7 +342,6 @@ tr.clickable { cursor: pointer; }
   .reasons-cell { min-width: 0 !important; max-width: 100% !important; }
   .score-cell { min-width: 0 !important; }
   .plan-action, .case-plain { white-space: normal !important; }
-  .lp-cell { min-width: 0 !important; }
   /* 这两个 260px 的 min-width 在 375px 屏上会顶破 flex/grid 容器 */
   .tp-reasons, .wide-card { min-width: 0 !important; }
   /* flex/grid 子项默认 min-width:auto，长内容会把容器撑宽，必须显式归零 */

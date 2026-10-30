@@ -49,11 +49,18 @@ console.log('[1] td/th 不再使用 inline width（硬约束，窄屏无法压�
   ok(bad.length === 0, `无 inline width 的 td/th${bad.length ? '，违规：' + bad.join(', ') : ''}`);
 }
 
-console.log('[2] 手机端解除表格 nowrap（核心修复）');
+console.log('[2] 手机端表格改为横向滚动，不能逐字断行（曾经的过度修复）');
 {
-  ok(/\.tbl td,\s*\.tbl th\s*\{[^}]*white-space:\s*normal\s*!important/.test(mobileBlock), '.tbl td/th 白-space 转 normal');
-  ok(/overflow-wrap:\s*anywhere/.test(mobileBlock), '单元格强制断词');
-  ok(/word-break:\s*break-word/.test(mobileBlock), '单元格 break-word');
+  // 曾经的错误方案：white-space:normal + overflow-wrap:anywhere + word-break:break-word
+  // 中文无空格，anywhere 会在任意字符间断行 → 每列只剩一个字宽，比溢出更难读
+  ok(!/\.tbl td,\s*\.tbl th\s*\{[^}]*white-space:\s*normal/.test(mobileBlock), '不再把 td 改成 normal（避免逐字断行）');
+  ok(!/\.tbl td[^{]*\{[^}]*overflow-wrap:\s*anywhere/.test(mobileBlock), 'td 不再用 overflow-wrap:anywhere（逐字断的元凶）');
+  ok(!/\.tbl td[^{]*\{[^}]*word-break/.test(mobileBlock), 'td 不再用 word-break');
+  ok(/\.tbl td,\s*\.tbl th\s*\{[^}]*white-space:\s*nowrap/.test(mobileBlock), 'td/th 保持 nowrap，列宽由内容决定');
+  ok(/\.panel\s*\{\s*overflow-x:\s*auto/.test(mobileBlock), '.panel 可横向滚动（窄屏表格的正确解法）');
+  ok(/\.tbl\s*\{\s*min-width:\s*max-content/.test(mobileBlock), '.tbl 用 min-width:max-content 按内容展开');
+  // 长文案列仍然要能换行
+  ok(/\.reasons-cell,\s*\.plan-action,\s*\.case-plain\s*\{[^}]*white-space:\s*normal\s*!important/.test(mobileBlock), '长文案列仍允许换行');
 }
 
 console.log('[3] 全局兜底');
@@ -66,7 +73,11 @@ console.log('[4] flex/grid 子项 min-width 归零（默认 auto 会被长内容
 {
   ok(/\.panel,\s*\.row2\s*>\s*\*,\s*\.ranks\s*>\s*\*,\s*\.cards\s*>\s*\*\s*\{\s*min-width:\s*0/.test(mobileBlock), 'panel/row2/ranks/cards 子项归零');
   ok(/\.tp-reasons,\s*\.wide-card\s*\{\s*min-width:\s*0\s*!important/.test(mobileBlock), '260px 写死宽度的两个类归零');
-  ok(/\.lp-cell\s*\{\s*min-width:\s*0\s*!important/.test(mobileBlock), '云图格子归零');
+  // chip 相反：必须保留足够 min-width，否则票名（最多4汉字）被压到逐字竖排
+  ok(!/\.lp-cell\s*\{\s*min-width:\s*0/.test(mobileBlock), 'lp-cell 不再被归零')
+  ok(/\.stock-chip\s*\{\s*min-width:\s*8\d/.test(mobileBlock), 'stock-chip 有足够 min-width 显示票名')
+  ok(/\.lp-cell\s*\{\s*min-width:\s*1\d\d/.test(mobileBlock), 'lp-cell 有足够 min-width 显示票名')
+  ok(/\.stock-chip b\s*\{\s*white-space:\s*nowrap/.test(mobileBlock), 'chip 内票名不换行')
   ok(/\.score-cell\s*\{\s*min-width:\s*0\s*!important/.test(mobileBlock), '评分列归零');
 }
 
